@@ -146,14 +146,29 @@ create_vector_extension() {
 create_table() {
     echo "Creating table in database $DB_NAME..."
     PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -h 127.0.0.1 -c "
-    CREATE TABLE task_memory (
+    CREATE TABLE IF NOT EXISTS task_memory (
         id SERIAL PRIMARY KEY,
         task TEXT NOT NULL,
         goals TEXT,
         personas JSONB,
-        embedding VECTOR(768)
+        embedding VECTOR(768),
+        reference_urls TEXT[]
     );
     "
+}
+
+# Function to alter the table to add reference_urls column
+alter_table() {
+    echo "Altering table in database $DB_NAME to add reference_urls column..."
+    PGPASSWORD=$POSTGRES_PASSWORD psql -U postgres -d $DB_NAME -h 127.0.0.1 -c "
+    ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS reference_urls TEXT[];
+    "
+}
+
+# Function to drop the task_memory table if it exists
+drop_table() {
+    echo "Dropping table task_memory if it exists..."
+    PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -h 127.0.0.1 -c "DROP TABLE IF EXISTS task_memory;"
 }
 
 # Connection Tests
@@ -189,7 +204,9 @@ main() {
                 create_user
                 grant_privileges
                 create_vector_extension
+                drop_table  # Add this line to drop the table before creating it
                 create_table
+                alter_table  # Ensure the table is altered if it already exists
                 test_database_connection
                 test_table_query
                 echo "Database setup and tests complete."
