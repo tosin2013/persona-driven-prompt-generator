@@ -91,7 +91,8 @@ def configure_litellm() -> str:
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
             raise ValueError("DEEPSEEK_API_KEY environment variable not set")
-        litellm.DeepseekConfig(api_key=api_key)
+        # Set the API key directly for Deepseek
+        litellm.api_key = api_key
     elif provider == "huggingface":
         api_key = os.getenv("HUGGINGFACE_API_KEY")
         if not api_key:
