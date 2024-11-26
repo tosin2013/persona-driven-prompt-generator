@@ -1,4 +1,4 @@
-### README.md: Crafting Goals for Software Development Use Cases
+### Crafting Goals for Software Development Use Cases
 
 ---
 
