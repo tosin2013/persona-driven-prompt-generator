@@ -121,7 +121,8 @@ def autochat(personas: List[Dict[str, Any]], num_users: int) -> None:
     for i in range(10):  # Simulate 10 exchanges
         for _ in range(num_users):
             persona = random.choice(personas)
-            prompt = f"{persona['name']} ({persona['emotional_tone']}): {persona['goals']}"
+            emotional_tone = persona.get('emotional_tone', 'neutral')
+            prompt = f"{persona['name']} ({emotional_tone}): {persona['goals']}"
             response = litellm.completion(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
@@ -789,7 +790,7 @@ def page1():
                 reply = interact_with_llm(prompt)
                 st.session_state.messages.append({"role": "system", "content": reply})
             else:
-                st.session_state.messages.append({"role": "system", "content": "Prompt is not initialized."})
+                st.session_state.messages.append({"role": "system", "content": "Prompt is not initialized. Please initialize the prompt first by clicking 'Initialize and Load Prompt for Chat'."})
 
     # Main Function with API Selection and Persona Tuner
     from litellm import completion
@@ -837,6 +838,10 @@ def page1():
         logging.debug("Program started")
         create_tables()  # Ensure tables are created
         task_details = get_user_input()
+        
+        if not task_details["task"] or not task_details["goals"]:
+            st.error("Please provide both the task description and goals.")
+            return
         
         # Ensure environment variables for LiteLLM are set
         if not os.getenv("LITELLM_MODEL") or not os.getenv("LITELLM_PROVIDER"):
@@ -990,6 +995,7 @@ def page1():
                 api_key = os.getenv("LITELLM_API_KEY")
                 llm_response = submit_prompt_to_llm(formatted_prompt, api_key=api_key)
                 st.session_state.messages.append({"role": "system", "content": llm_response})
+                st.success("Chat is ready. You can start interacting with the personas.")
             else:
                 st.warning(current_task["error"])
 

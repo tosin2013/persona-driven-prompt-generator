@@ -171,6 +171,17 @@ drop_table() {
     PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -h 127.0.0.1 -c "DROP TABLE IF EXISTS task_memory;"
 }
 
+# Function to create the emotional_tones table
+create_emotional_tones_table() {
+    echo "Creating table emotional_tones in database $DB_NAME..."
+    PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -h 127.0.0.1 -c "
+    CREATE TABLE IF NOT EXISTS emotional_tones (
+        id SERIAL PRIMARY KEY,
+        tone TEXT NOT NULL
+    );
+    "
+}
+
 # Connection Tests
 test_database_connection() {
     echo "Testing database connection..."
@@ -207,6 +218,7 @@ main() {
                 drop_table  # Add this line to drop the table before creating it
                 create_table
                 alter_table  # Ensure the table is altered if it already exists
+                create_emotional_tones_table  # Add this line to create the emotional_tones table
                 test_database_connection
                 test_table_query
                 echo "Database setup and tests complete."

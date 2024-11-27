@@ -1,5 +1,6 @@
 import streamlit as st
 from utils import clear_database
+import litellm
 
 def page3():
     st.title("Settings")
@@ -15,8 +16,10 @@ def page3():
     # Add a 'Clear LLM Context' button in the settings page
     if st.button("Clear LLM Context"):
         # Clear the session state related to LLM prompts and messages
-        st.session_state.prompt = {}
+        st.session_state.prompt = None
         st.session_state.messages = []
+        st.session_state.chat_log = []
+        
         st.success("LLM context has been cleared.")
     
     # Add a button to download all content as markdown
