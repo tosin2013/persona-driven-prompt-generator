@@ -56,6 +56,11 @@ Welcome to the **Persona-Driven Prompt Generator**! This application allows you 
    ```bash
    pip install -r requirements.txt
    ```
+4. **Configure Vector Database**
+   ```bash
+   ./setup_database.sh
+   ```
+
 ## Configuration
 
 Before running the application, you need to set up your environment variables to configure LiteLLM and authenticate with your chosen LLM provider.
