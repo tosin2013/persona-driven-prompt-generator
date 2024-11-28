@@ -19,7 +19,12 @@ install_postgresql_rhel() {
 # Function to install PostgreSQL on Ubuntu
 install_postgresql_ubuntu() {
     sudo apt-get update
-    sudo apt-get install -y postgresql-15
+    sudo apt-get upgrade -y
+    sudo apt-get install -y dirmngr ca-certificates software-properties-common apt-transport-https lsb-release curl
+    curl -fSsL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor | sudo tee /usr/share/keyrings/postgresql.gpg > /dev/null
+    echo "deb [arch=amd64,arm64,ppc64el signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/postgresql.list
+    sudo apt-get update
+    sudo apt-get install -y postgresql-client-15 postgresql-15
 }
 
 # Function to install pgvector extension
@@ -39,8 +44,14 @@ cleanup_postgresql() {
         sudo systemctl stop postgresql-15
         sudo systemctl disable postgresql-15
     fi
-    sudo yum remove -y postgresql15-server postgresql15 || sudo apt-get remove -y postgresql-15
-    sudo rm -rf /var/lib/pgsql/15/data
+    if [ -f /etc/redhat-release ]; then
+        sudo yum remove -y postgresql15-server postgresql15
+        sudo rm -rf /var/lib/pgsql/15/data
+    elif [ -f /etc/lsb-release ]; then
+        sudo pg_dropcluster 15 main --stop
+        sudo apt-get remove --purge -y postgresql-15
+        sudo rm -rf /var/lib/postgresql/15/main
+    fi
     echo "PostgreSQL installation cleaned up."
 }
 
@@ -66,15 +77,36 @@ detect_os_and_install() {
     fi
 }
 
+# Function to remove existing PostgreSQL cluster if it exists
+remove_existing_cluster() {
+    echo "Checking for existing PostgreSQL cluster..."
+    if pg_lsclusters | grep -q "15 main"; then
+        echo "Existing cluster found. Removing..."
+        sudo pg_dropcluster 15 main --stop
+        sudo rm -rf /etc/postgresql/15/main
+        sudo rm -rf /var/lib/postgresql/15/main
+        echo "Existing cluster removed."
+    else
+        echo "No existing cluster found."
+    fi
+}
+
+
 # Check if the data directory is already initialized
 check_data_directory() {
-    if [ ! "$(ls -A $PG_DATA_DIR)" ]; then
+    if [ ! -d "$PG_DATA_DIR" ] || [ ! "$(ls -A $PG_DATA_DIR)" ]; then
+        remove_existing_cluster  # Move this line to ensure the cluster is cleared before checking the data directory
         echo "Initializing PostgreSQL database..."
-        sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
+        if [ -f /etc/redhat-release ]; then
+            sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
+        elif [ -f /etc/lsb-release ]; then
+            sudo pg_createcluster 15 main --start
+        fi
     else
         echo "PostgreSQL database already initialized. Skipping initdb."
     fi
 }
+
 
 # Start PostgreSQL service
 start_postgresql_service() {
@@ -204,6 +236,7 @@ main() {
                 echo "Installing PostgreSQL..."
                 detect_os_and_install
                 install_pgvector
+                remove_existing_cluster  # Add this line to remove existing cluster before creating a new one
                 check_data_directory
                 start_postgresql_service
                 get_pg_hba_conf_location
