@@ -63,19 +63,22 @@ jobs:
           chmod 600 githubkey.pem
 
       - name: Install requirements on EC2 instance
-        run: |
-          ssh -tt -o StrictHostKeyChecking=no -i githubkey.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
-            sudo yum update -y
-            sudo yum install -y python3-pip git
-            git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
-            cd persona-driven-prompt-generator
-            pip3 install -r requirements.txt
-            bash setup_database.sh -i
-            curl -fsSL https://ollama.com/install.sh | sh
-            export LITELLM_MODEL="ollama/llama2"
-            export LITELLM_PROVIDER="ollama"
-            export LITELLM_API_BASE="http://localhost:11434"
-            export OLLAMA_API_KEY="your-ollama-api-key"
-            ollama pull ${LITELLM_MODEL}
-            streamlit run persona_testing.py
-          EOF
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+            host: ${{ steps.ec2-dns.outputs.instance_dns }}
+            username: ec2-user
+            key_path: ./githubkey.pem
+            script: |
+                sudo yum update -y
+                sudo yum install -y python3-pip git
+                git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
+                cd persona-driven-prompt-generator
+                pip3 install -r requirements.txt
+                bash setup_database.sh -i
+                curl -fsSL https://ollama.com/install.sh | sh
+                export LITELLM_MODEL="ollama/llama2"
+                export LITELLM_PROVIDER="ollama"
+                export LITELLM_API_BASE="http://localhost:11434"
+                export OLLAMA_API_KEY="your-ollama-api-key"
+                ollama pull ${LITELLM_MODEL}
+                streamlit run persona_testing.py
