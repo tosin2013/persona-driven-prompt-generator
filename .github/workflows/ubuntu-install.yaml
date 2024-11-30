@@ -12,77 +12,94 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install doctl
-        run: |
-          sudo snap install doctl
-          doctl auth init -t ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Create Droplet
         id: create_droplet
         run: |
-          doctl compute droplet create "ubuntu-s-2vcpu-4gb-amd-sfo3-github" \
+          DROPLET_IP=$(doctl compute droplet create "ubuntu-s-2vcpu-4gb-amd-sfo3-github" \
             --region sfo3 \
             --image ubuntu-22-04-x64 \
             --size s-2vcpu-4gb-amd \
             --ssh-keys $(doctl compute ssh-key list --format ID --no-header) \
             --wait \
             --format PublicIPv4 \
-            --no-header > droplet_ip.txt
-          sleep 30s
-          echo "DROPLET_IP=$(cat droplet_ip.txt)" >> $GITHUB_ENV
+            --no-header)
+          echo "DROPLET_IP=$DROPLET_IP" >> $GITHUB_ENV
 
-      - name: Wait for SSH to become available
+      - name: Wait for SSH
+        timeout-minutes: 5
         run: |
-          for i in {1..10}; do
-            if nc -zv $DROPLET_IP 22 2>/dev/null; then
-              echo "SSH is available"
-              break
-            else
-              echo "SSH not available yet, retrying in 30 seconds..."
-              sleep 30
-            fi
+          until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -i <(echo "${{ secrets.DROPLET_SSH_KEY }}") \
+            root@${{ env.DROPLET_IP }} echo "SSH ready"; do
+            sleep 10
           done
 
-      - name: Clone repository on Droplet
-        uses: appleboy/ssh-action@v0.1.8
+      - name: Deploy Application
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ env.DROPLET_IP }}
           username: root
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             #!/bin/bash
+            set -e
 
-            # Update and upgrade the system
-            sudo apt update && sudo apt upgrade -y
+            # System updates
+            apt-get update && apt-get upgrade -y
+            apt-get install -y python3-pip git ufw coreutils
 
-            # Install necessary packages
-            sudo apt install -y python3-pip git ufw coreutils
-
-            # Clone the repository
-            git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
-            cd persona-driven-prompt-generator
-
-            # Install Python dependencies
-            pip3 install -r requirements.txt
-
-            # Set up the database
-            bash setup_database.sh -i
-
-            sudo ufw enable
-            sudo ufw allow 8501/tcp
-            sudo ufw reload
+            # Configure firewall
+            ufw allow 22/tcp
+            ufw allow 8501/tcp
+            yes | ufw enable
 
             # Install Ollama
             curl -fsSL https://ollama.com/install.sh | sh
 
-            # Set environment variables
-            export LITELLM_MODEL="ollama/llama2"
-            export LITELLM_PROVIDER="ollama"
-            export LITELLM_API_BASE="http://localhost:11434"
-            export OLLAMA_API_KEY="your-ollama-api-key"
+            # Clone and setup application
+            git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
+            cd persona-driven-prompt-generator
+            pip3 install -r requirements.txt
+            bash setup_database.sh -i
 
-            # Pull the specified model
-            ollama pull ${LITELLM_MODEL}
+            # Configure environment
+            cat > /etc/environment <<EOF
+            LITELLM_MODEL="ollama/llama2"
+            LITELLM_PROVIDER="ollama"
+            LITELLM_API_BASE="http://localhost:11434"
+            OLLAMA_API_KEY="${{ secrets.OLLAMA_API_KEY }}"
+            EOF
+            source /etc/environment
 
-            # Run the Streamlit application in the background
-            nohup streamlit run persona_testing.py > output.log 2>&1 &
+            # Pull Ollama model
+            ollama pull $LITELLM_MODEL
 
+            # Setup systemd service
+            cat > /etc/systemd/system/streamlit.service <<EOF
+            [Unit]
+            Description=Streamlit Application
+            After=network.target
+
+            [Service]
+            Environment=LITELLM_MODEL=ollama/llama2
+            Environment=LITELLM_PROVIDER=ollama
+            Environment=LITELLM_API_BASE=http://localhost:11434
+            Environment=OLLAMA_API_KEY=${{ secrets.OLLAMA_API_KEY }}
+            ExecStart=/usr/local/bin/streamlit run /root/persona-driven-prompt-generator/persona_testing.py
+            Restart=always
+            User=root
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            systemctl daemon-reload
+            systemctl enable streamlit
+            systemctl start streamlit
+
+      - name: Output Droplet IP
+        run: echo "Application deployed at http://${{ env.DROPLET_IP }}:8501"
