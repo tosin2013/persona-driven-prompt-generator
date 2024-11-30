@@ -13,8 +13,9 @@ PG_DATA_DIR="/var/lib/pgsql/15/data"
 
 # Function to install PostgreSQL on RHEL
 install_postgresql_rhel() {
-    sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %{rhel})-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-    sudo yum install -y postgresql15-server postgresql15
+    sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    sudo dnf -qy module disable postgresql
+    sudo dnf install -y postgresql17-server
 }
 
 # Function to install PostgreSQL on Ubuntu
@@ -83,44 +84,70 @@ detect_os_and_install() {
 
 # Function to remove existing PostgreSQL cluster if it exists
 remove_existing_cluster() {
-    echo "Checking for existing PostgreSQL cluster..."
-    if pg_lsclusters | grep -q "17 main"; then
-        echo "Existing cluster found. Removing..."
-        sudo pg_dropcluster 17 main --stop
-        sudo rm -rf /etc/postgresql/17/main
-        sudo rm -rf /var/lib/postgresql/17/main
-        echo "Existing cluster removed."
-        return 0
+    echo "Removing existing PostgreSQL cluster..."
+
+    # Detect the OS
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+        VERSION_ID=$VERSION_ID
     else
-        echo "No existing cluster found."
-        return 1
+        echo "Unsupported OS"
+        exit 1
     fi
+
+    # Stop the PostgreSQL service
+    if [ "$OS" = "ubuntu" ]; then
+        sudo systemctl stop postgresql@17-main
+    elif [ "$OS" = "rhel" ] && [[ "$VERSION_ID" == 9* ]]; then
+        sudo systemctl stop postgresql-17
+    else
+        echo "Unsupported OS or PostgreSQL version"
+        exit 1
+    fi
+
+    # Remove the PostgreSQL data directory
+    if [ "$OS" = "ubuntu" ]; then
+        sudo rm -rf /var/lib/postgresql/17/main
+    elif [ "$OS" = "rhel" ] && [[ "$VERSION_ID" == 9* ]]; then
+        sudo rm -rf /var/lib/pgsql/17/data
+    fi
+
+    echo "PostgreSQL cluster removed and reinitialized."
 }
 
 # Check if the data directory is already initialized
 check_data_directory() {
-    if [ ! -d "$PG_DATA_DIR" ] || [ ! "$(ls -A $PG_DATA_DIR)" ]; then
-        if remove_existing_cluster; then
-            echo "Initializing PostgreSQL database..."
-            if [ -f /etc/redhat-release ]; then
-                sudo /usr/pgsql-17/bin/postgresql-17-setup initdb
-            elif [ -f /etc/lsb-release ]; then
-                sudo pg_createcluster 17 main --start
-            fi
-        else
-            echo "PostgreSQL database already initialized. Skipping initdb."
-        fi
+    echo "Initializing PostgreSQL database..."
+
+    if [ -f /etc/redhat-release ]; then
+        sudo rm -rf /var/lib/pgsql/17/data
+        sudo /usr/pgsql-17/bin/postgresql-17-setup initdb
+    elif [ -f /etc/lsb-release ]; then
+        sudo pg_createcluster 17 main --start
     else
-        echo "PostgreSQL database already initialized. Skipping initdb."
+        echo "Unsupported OS"
+        exit 1
     fi
 }
 
 # Start PostgreSQL service
 start_postgresql_service() {
-    if systemctl list-units --type=service | grep -q "postgresql.service"; then
+    if systemctl list-units --type=service | grep -q "postgresql@17-main.service"; then
+        sudo systemctl enable postgresql@17-main
+        sudo systemctl start postgresql@17-main
+    elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
+        sudo systemctl enable postgresql-17
+        sudo systemctl start postgresql-17
+    elif systemctl list-units --type=service | grep -q "postgresql.service"; then
         sudo systemctl enable postgresql
         sudo systemctl start postgresql
-    elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
+    elif [ -f /etc/redhat-release ]; then
+        echo "PostgreSQL service not found on RHEL. Attempting to start manually..."
+        if [ ! -z "$(sudo ls -A /var/lib/pgsql/17/data)" ]; then
+            sudo rm -rf /var/lib/pgsql/17/data
+        fi
+        sudo /usr/pgsql-17/bin/postgresql-17-setup initdb
         sudo systemctl enable postgresql-17
         sudo systemctl start postgresql-17
     else
@@ -153,6 +180,8 @@ reload_postgresql_configuration() {
     if systemctl list-units --type=service | grep -q "postgresql.service"; then
         sudo systemctl restart postgresql
     elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
+        sudo systemctl restart postgresql-17
+    elif [ -f /etc/redhat-release ]; then
         sudo systemctl restart postgresql-17
     else
         echo "PostgreSQL service not found. Exiting..."
@@ -196,7 +225,7 @@ create_vector_extension() {
     echo "Creating vector extension..."
     if sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>&1 | grep -q "Could not open extension control file"; then
         echo "pgvector extension is not installed. Installing now..."
-        sudo apt install -y postgresql-15-pgvector || { echo "Failed to install pgvector."; exit 1; }
+        sudo apt install -y postgresql-17-pgvector || { echo "Failed to install pgvector."; exit 1; }
         sudo systemctl restart postgresql
         sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;"
     fi
@@ -264,11 +293,10 @@ main() {
         case $opt in
             i)
                 echo "Installing PostgreSQL..."
+                #remove_existing_cluster
                 detect_os_and_install
+                check_data_directory
                 install_pgvector
-                if remove_existing_cluster; then
-                    check_data_directory
-                fi
                 start_postgresql_service
                 get_pg_hba_conf_location
                 update_pg_hba_conf
@@ -289,7 +317,9 @@ main() {
                 ;;
             c)
                 echo "Cleaning up PostgreSQL installation..."
-                cleanup_database
+                if systemctl is-active --quiet postgresql-17 || systemctl is-active --quiet postgresql@17-main; then
+                    cleanup_database
+                fi
                 cleanup_postgresql
                 ;;
             \?)

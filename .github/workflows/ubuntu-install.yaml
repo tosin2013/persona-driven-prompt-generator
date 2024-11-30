@@ -48,7 +48,7 @@ jobs:
             #!/bin/bash
             set -e
 
-            # System updates
+            # Update system
             apt-get update && apt-get upgrade -y
             apt-get install -y python3-pip git ufw coreutils
 

@@ -30,9 +30,11 @@ jobs:
             --security-group-ids ${{ secrets.SECURITY_GROUP_ID }} \
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=persona_rhel9.4}]' \
             --associate-public-ip-address \
+            --block-device-mappings "[{\"DeviceName\": \"/dev/sda1\", \"Ebs\": {\"VolumeSize\": 160}}]" \
             --query 'Instances[0].InstanceId' \
             --output text)
           echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+  
 
       - name: Wait for EC2 instance to be running
         run: |
