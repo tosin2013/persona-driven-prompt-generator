@@ -85,7 +85,7 @@ def configure_litellm() -> str:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
-        litellm.OpenAIConfig(api_key=api_key)
+        litellm.api_key = api_key  # Set the API key directly for OpenAI
     elif provider == "groq":
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
