@@ -27,6 +27,7 @@ jobs:
             --wait \
             --format PublicIPv4 \
             --no-header > droplet_ip.txt
+          sleep 30s
           echo "DROPLET_IP=$(cat droplet_ip.txt)" >> $GITHUB_ENV
 
       - name: Wait for SSH to become available
