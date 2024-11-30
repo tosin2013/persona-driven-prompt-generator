@@ -21,7 +21,7 @@ jobs:
     - name: Launch EC2 instance
       id: ec2
       run: |
-        INSTANCE_ID=$(aws ec2 run-instances --image-id  ${{ secrets.RHEL_AMI }} --count 1 --instance-type m6i.xlarge --key-name githubkey --subnet-id ${{ secrets.SUBNET_ID }} --query 'Instances[0].InstanceId' --output text)
+        INSTANCE_ID=$(aws ec2 run-instances --image-id  ${{ secrets.RHEL_AMI }} --count 1 --instance-type m6i.xlarge --key-name githubkey --subnet-id ${{ secrets.SUBNET_ID }} --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=persona_rhel9.4}]' --query 'Instances[0].InstanceId' --output text)
         echo "::set-output name=instance_id::$INSTANCE_ID"
 
     - name: Wait for EC2 instance to be running
@@ -36,7 +36,7 @@ jobs:
 
     - name: Install requirements on EC2 instance
       run: |
-        ssh -o StrictHostKeyChecking=no -i MyKeyPair.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
+        ssh -o StrictHostKeyChecking=no -i githubkey.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
           sudo yum update -y
           sudo yum install -y python3-pip
           pip3 install -r /path/to/requirements.txt
