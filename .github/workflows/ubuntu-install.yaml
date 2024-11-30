@@ -1,7 +1,7 @@
 name: Deploy to DigitalOcean Droplet
 
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,11 +17,63 @@ jobs:
           doctl auth init -t ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Create Droplet
+        id: create_droplet
         run: |
-          DROPLET_NAME="ubuntu-s-2vcpu-4gb-amd-sfo3-$((RANDOM % 100 + 1))"
-          doctl compute droplet create $DROPLET_NAME \
+          doctl compute droplet create "ubuntu-s-2vcpu-4gb-amd-sfo3-$((RANDOM % 100 + 1))" \
             --region sfo3 \
             --image ubuntu-22-04-x64 \
             --size s-2vcpu-4gb-amd \
             --ssh-keys $(doctl compute ssh-key list --format ID --no-header) \
-            --wait
+            --wait \
+            --format PublicIPv4 \
+            --no-header > droplet_ip.txt
+          echo "DROPLET_IP=$(cat droplet_ip.txt)" >> $GITHUB_ENV
+
+      - name: Wait for SSH to become available
+        run: |
+          sleep 60
+
+      - name: Clone repository on Droplet
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            #!/bin/bash
+
+            # Update and upgrade the system
+            sudo apt update && sudo apt upgrade -y
+
+            # Install necessary packages
+            sudo apt install -y python3-pip git ufw coreutils
+
+            # Clone the repository
+            git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
+            cd persona-driven-prompt-generator
+
+            # Install Python dependencies
+            pip3 install -r requirements.txt
+
+            # Set up the database
+            bash setup_database.sh -i
+
+            sudo ufw enable
+            sudo ufw allow 8501/tcp
+            sudo ufw reload
+
+            # Install Ollama
+            curl -fsSL https://ollama.com/install.sh | sh
+
+            # Set environment variables
+            export LITELLM_MODEL="ollama/llama2"
+            export LITELLM_PROVIDER="ollama"
+            export LITELLM_API_BASE="http://localhost:11434"
+            export OLLAMA_API_KEY="your-ollama-api-key"
+
+            # Pull the specified model
+            ollama pull ${LITELLM_MODEL}
+
+            # Run the Streamlit application in the background
+            nohup streamlit run persona_testing.py > output.log 2>&1 &
+
