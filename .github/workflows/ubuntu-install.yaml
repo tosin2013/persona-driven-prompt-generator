@@ -1,4 +1,4 @@
-name: Setup AWS VM and Install Requirements
+name: Setup AWS Ubuntu 22.04 VM and Install Requirements
 
 on:
   workflow_dispatch:
