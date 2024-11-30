@@ -8,53 +8,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up AWS CLI
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-    - name: Launch EC2 instance
-      id: ec2
-      run: |
-        INSTANCE_ID=$(aws ec2 run-instances \
-          --image-id ${{ secrets.RHEL_AMI }} \
-          --count 1 \
-          --instance-type m6i.xlarge \
-          --key-name githubkey \
-          --subnet-id ${{ secrets.SUBNET_ID }} \
-          --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=persona_rhel9.4}]' \
-          --query 'Instances[0].InstanceId' \
-          --output text)
-        echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+      - name: Launch EC2 instance
+        id: ec2
+        run: |
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ${{ secrets.RHEL_AMI }} \
+            --count 1 \
+            --instance-type m6i.xlarge \
+            --key-name githubkey \
+            --subnet-id ${{ secrets.SUBNET_ID }} \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=persona_rhel9.4}]' \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
 
-    - name: Wait for EC2 instance to be running
-      run: |
-        aws ec2 wait instance-running --instance-ids ${{ steps.ec2.outputs.instance_id }}
+      - name: Wait for EC2 instance to be running
+        run: |
+          aws ec2 wait instance-running --instance-ids ${{ steps.ec2.outputs.instance_id }}
 
-    - name: Get EC2 instance public DNS
-      id: ec2-dns
-      run: |
-        INSTANCE_DNS=$(aws ec2 describe-instances \
-          --instance-ids ${{ steps.ec2.outputs.instance_id }} \
-          --query 'Reservations[0].Instances[0].PublicDnsName' \
-          --output text)
-        echo "instance_dns=$INSTANCE_DNS" >> $GITHUB_OUTPUT
+      - name: Get EC2 instance public DNS
+        id: ec2-dns
+        run: |
+            INSTANCE_DNS=$(aws ec2 describe-instances \
+                --instance-ids ${{ steps.ec2.outputs.instance_id }} \
+                --query 'Reservations[0].Instances[0].PublicDnsName' \
+                --output text)
+            if [ -z "$INSTANCE_DNS" ]; then
+                echo "Failed to retrieve instance DNS."
+                exit 1
+            fi
+            echo "instance_dns=$INSTANCE_DNS" >> $GITHUB_OUTPUT
 
-    - name: Download SSH key
-      run: |
-        echo "${{ secrets.SSH_KEY }}" > githubkey.pem
-        chmod 600 githubkey.pem
+      - name: Download SSH key
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > githubkey.pem
+          chmod 600 githubkey.pem
 
-    - name: Install requirements on EC2 instance
-      run: |
-        ssh -o StrictHostKeyChecking=no -i githubkey.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
-          sudo yum update -y
-          sudo yum install -y python3-pip
-          pip3 install -r /path/to/requirements.txt
-          bash /path/to/setup_database.sh -i
-        EOF
+      - name: Install requirements on EC2 instance
+        run: |
+          ssh -tt -o StrictHostKeyChecking=no -i githubkey.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
+            sudo yum update -y
+            sudo yum install -y python3-pip
+            pip3 install -r /path/to/requirements.txt
+            bash /path/to/setup_database.sh -i
+          EOF

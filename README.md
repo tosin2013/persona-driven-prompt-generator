@@ -47,7 +47,7 @@ Welcome to the **Persona-Driven Prompt Generator**! This application allows you 
 2. **Create a Virtual Environment (Optional but Recommended)**
 
    ```bash
-   python -m venv venv
+   python3 -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    ```
 
