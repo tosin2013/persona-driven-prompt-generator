@@ -63,24 +63,9 @@ Welcome to the **Persona-Driven Prompt Generator**! This application allows you 
 
 ## Configuration
 
-Before running the application, you need to set up your environment variables to configure LiteLLM and authenticate with your chosen LLM provider.
+To configure LiteLLM effectively, you need to set specific environment variables tailored to your chosen LLM provider. Below are examples for each supported provider:
 
-### Environment Variables
-* https://docs.litellm.ai/docs/
-- **LITELLM_MODEL**: The name of the model you wish to use (e.g., `gpt-3.5-turbo`).
-- **LITELLM_PROVIDER**: The provider for LiteLLM (`openai`, `groq`, `deepseek`, or `huggingface`).
-- **API Key Variable**: Depending on the provider, set the appropriate API key environment variable:
-  - `OPENAI_API_KEY` for OpenAI
-  - `GROQ_API_KEY` for Groq
-  - `DEEPSEEK_API_KEY` for DeepSeek
-  - `HUGGINGFACE_API_KEY` for Hugging Face
-  - `OLLAMA_API_KEY` for OLLAMA
-
-### Setting Environment Variables
-
-You can set environment variables in your shell or within the application using the Streamlit interface.
-
-#### Example (Unix-like Systems)
+### OpenAI Example
 
 ```bash
 export LITELLM_MODEL="gpt-3.5-turbo"
@@ -88,7 +73,40 @@ export LITELLM_PROVIDER="openai"
 export OPENAI_API_KEY="your-openai-api-key"
 ```
 
+In this configuration, `LITELLM_MODEL` specifies the model name, `LITELLM_PROVIDER` indicates the provider, and `OPENAI_API_KEY` is your unique API key for authentication.
+
+### Groq Example
+
+```bash
+export LITELLM_MODEL="groq-model-name"
+export LITELLM_PROVIDER="groq"
+export GROQ_API_KEY="your-groq-api-key"
+```
+
+Replace `groq-model-name` with the specific model you intend to use and `your-groq-api-key` with your Groq API key.
+
+### DeepSeek Example
+
+```bash
+export LITELLM_MODEL="deepseek-model-name"
+export LITELLM_PROVIDER="deepseek"
+export DEEPSEEK_API_KEY="your-deepseek-api-key"
+```
+
+Ensure you replace `deepseek-model-name` with your chosen model and `your-deepseek-api-key` with the appropriate API key.
+
+### Hugging Face Example
+
+```bash
+export LITELLM_MODEL="huggingface/transformer-model"
+export LITELLM_PROVIDER="huggingface"
+export HUGGINGFACE_API_KEY="your-huggingface-api-key"
+```
+
+Here, `huggingface/transformer-model` should be replaced with the specific model from Hugging Face, and `your-huggingface-api-key` with your API key.
+
 ### Ollama Example
+
 ```bash
 export LITELLM_MODEL="ollama/llama2"
 export LITELLM_PROVIDER="ollama"
@@ -96,14 +114,11 @@ export LITELLM_API_BASE="http://localhost:11434"
 export OLLAMA_API_KEY="your-ollama-api-key"
 ```
 
+For Ollama, set `LITELLM_API_BASE` to the base URL where the Ollama service is running, typically `http://localhost:11434`, and provide your Ollama API key.
 
-#### Example (Windows)
+**Note:** Replace placeholder values (e.g., `your-openai-api-key`) with your actual API keys. For enhanced security, consider using a `.env` file to manage these variables. Ensure that the `LITELLM_MODEL` corresponds to a model supported by your specified provider.
 
-```cmd
-set LITELLM_MODEL=gpt-3.5-turbo
-set LITELLM_PROVIDER=openai
-set OPENAI_API_KEY=your-openai-api-key
-```
+For more detailed information, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/). 
 
 ---
 

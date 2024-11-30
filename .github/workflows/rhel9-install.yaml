@@ -27,6 +27,7 @@ jobs:
             --instance-type m6i.xlarge \
             --key-name githubkey \
             --subnet-id ${{ secrets.SUBNET_ID }} \
+            --security-group-ids ${{ secrets.SECURITY_GROUP_ID }} \
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=persona_rhel9.4}]' \
             --associate-public-ip-address \
             --query 'Instances[0].InstanceId' \
@@ -36,6 +37,7 @@ jobs:
       - name: Wait for EC2 instance to be running
         run: |
           aws ec2 wait instance-running --instance-ids ${{ steps.ec2.outputs.instance_id }}
+
 
       - name: Get EC2 instance public DNS
         id: ec2-dns
