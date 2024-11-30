@@ -1,0 +1,44 @@
+name: Setup AWS VM and Install Requirements
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-vm:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+    - name: Launch EC2 instance
+      id: ec2
+      run: |
+        INSTANCE_ID=$(aws ec2 run-instances --image-id  ${{ secrets.RHEL_AMI }} --count 1 --instance-type m6i.xlarge --key-name githubkey --query 'Instances[0].InstanceId' --output text)
+        echo "::set-output name=instance_id::$INSTANCE_ID"
+
+    - name: Wait for EC2 instance to be running
+      run: |
+        aws ec2 wait instance-running --instance-ids ${{ steps.ec2.outputs.instance_id }}
+
+    - name: Get EC2 instance public DNS
+      id: ec2-dns
+      run: |
+        INSTANCE_DNS=$(aws ec2 describe-instances --instance-ids ${{ steps.ec2.outputs.instance_id }} --query 'Reservations[0].Instances[0].PublicDnsName' --output text)
+        echo "::set-output name=instance_dns::$INSTANCE_DNS"
+
+    - name: Install requirements on EC2 instance
+      run: |
+        ssh -o StrictHostKeyChecking=no -i MyKeyPair.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
+          sudo yum update -y
+          sudo yum install -y python3-pip
+          pip3 install -r /path/to/requirements.txt
+          bash /path/to/setup_database.sh -i
+        EOF
