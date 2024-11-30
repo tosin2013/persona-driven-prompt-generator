@@ -24,10 +24,15 @@ jobs:
             --image ubuntu-22-04-x64 \
             --size s-2vcpu-4gb-amd \
             --ssh-keys $(doctl compute ssh-key list --format ID --no-header) \
+            --vpc-uuid ${{ secrets.DIGITALOCEAN_VPC }} \
             --wait \
             --format PublicIPv4 \
             --no-header)
           echo "DROPLET_IP=$DROPLET_IP" >> $GITHUB_ENV
+
+      - name: Output Droplet IP
+        run: "echo Droplet IP: ${{ env.DROPLET_IP }}"
+        continue-on-error:  false
 
       - name: Wait for SSH
         timeout-minutes: 5
