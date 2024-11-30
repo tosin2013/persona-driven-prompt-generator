@@ -1,0 +1,27 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+    workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        run: |
+          sudo snap install doctl
+          doctl auth init -t ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Create Droplet
+        run: |
+          DROPLET_NAME="ubuntu-s-2vcpu-4gb-amd-sfo3-$(date +%s)"
+          doctl compute droplet create $DROPLET_NAME \
+            --region sfo3 \
+            --image ubuntu-s-2vcpu-4gb-amd-sfo3-01 \
+            --size s-2vcpu-4gb-amd \
+            --ssh-keys $(doctl compute ssh-key list --format ID --no-header) \
+            --wait
