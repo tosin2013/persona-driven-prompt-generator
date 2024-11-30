@@ -37,6 +37,7 @@ jobs:
 
       - name: Wait for EC2 instance to be running
         run: |
+          sleep 60s
           aws ec2 wait instance-running --instance-ids ${{ steps.ec2.outputs.instance_id }}
 
 
