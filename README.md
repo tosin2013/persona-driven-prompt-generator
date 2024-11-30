@@ -66,7 +66,7 @@ Welcome to the **Persona-Driven Prompt Generator**! This application allows you 
 Before running the application, you need to set up your environment variables to configure LiteLLM and authenticate with your chosen LLM provider.
 
 ### Environment Variables
-
+* https://docs.litellm.ai/docs/
 - **LITELLM_MODEL**: The name of the model you wish to use (e.g., `gpt-3.5-turbo`).
 - **LITELLM_PROVIDER**: The provider for LiteLLM (`openai`, `groq`, `deepseek`, or `huggingface`).
 - **API Key Variable**: Depending on the provider, set the appropriate API key environment variable:
@@ -87,6 +87,15 @@ export LITELLM_MODEL="gpt-3.5-turbo"
 export LITELLM_PROVIDER="openai"
 export OPENAI_API_KEY="your-openai-api-key"
 ```
+
+### Ollama Example
+```bash
+export LITELLM_MODEL="ollama/llama2"
+export LITELLM_PROVIDER="ollama"
+export LITELLM_API_BASE="http://localhost:11434"
+export OLLAMA_API_KEY="your-ollama-api-key"
+```
+
 
 #### Example (Windows)
 
