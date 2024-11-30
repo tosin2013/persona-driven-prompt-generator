@@ -34,6 +34,11 @@ jobs:
         INSTANCE_DNS=$(aws ec2 describe-instances --instance-ids ${{ steps.ec2.outputs.instance_id }} --query 'Reservations[0].Instances[0].PublicDnsName' --output text)
         echo "::set-output name=instance_dns::$INSTANCE_DNS"
 
+    - name: Download SSH key
+      run: |
+        echo "${{ secrets.SSH_KEY }}" > githubkey.pem
+        chmod 600 githubkey.pem
+
     - name: Install requirements on EC2 instance
       run: |
         ssh -o StrictHostKeyChecking=no -i githubkey.pem ec2-user@${{ steps.ec2-dns.outputs.instance_dns }} << 'EOF'
