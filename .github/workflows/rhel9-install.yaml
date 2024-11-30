@@ -39,15 +39,22 @@ jobs:
       - name: Get EC2 instance public DNS
         id: ec2-dns
         run: |
+          for i in {1..10}; do
             INSTANCE_DNS=$(aws ec2 describe-instances \
-                --instance-ids ${{ steps.ec2.outputs.instance_id }} \
-                --query 'Reservations[0].Instances[0].PublicDnsName' \
-                --output text)
-            if [ -z "$INSTANCE_DNS" ]; then
-                echo "Failed to retrieve instance DNS."
-                exit 1
+              --instance-ids ${{ steps.ec2.outputs.instance_id }} \
+              --query 'Reservations[0].Instances[0].PublicDnsName' \
+              --output text)
+            if [ -n "$INSTANCE_DNS" ]; then
+              echo "instance_dns=$INSTANCE_DNS" >> $GITHUB_OUTPUT
+              break
             fi
-            echo "instance_dns=$INSTANCE_DNS" >> $GITHUB_OUTPUT
+            echo "Retrying to get instance DNS... ($i/10)"
+            sleep 10
+          done
+          if [ -z "$INSTANCE_DNS" ]; then
+            echo "Failed to retrieve instance DNS."
+            exit 1
+          fi
 
       - name: Download SSH key
         run: |
