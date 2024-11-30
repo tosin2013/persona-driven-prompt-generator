@@ -28,25 +28,26 @@ jobs:
             --wait \
             --format PublicIPv4 \
             --no-header)
-          echo "DROPLET_IP=$DROPLET_IP" >> $GITHUB_ENV
+          echo "::set-output name=droplet_ip::$DROPLET_IP"
 
       - name: Output Droplet IP
-        run: "echo Droplet IP: ${{ env.DROPLET_IP }}"
-        continue-on-error:  false
+        run: |
+          echo Droplet IP: ${{ steps.create_droplet.outputs.droplet_ip }} || exit 1
+        continue-on-error: false
 
       - name: Wait for SSH
         timeout-minutes: 5
         run: |
           until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             -i <(echo "${{ secrets.DROPLET_SSH_KEY }}") \
-            root@${{ env.DROPLET_IP }} echo "SSH ready"; do
+            root@${{ steps.create_droplet.outputs.droplet_ip }} echo "SSH ready"; do
             sleep 10
           done
 
       - name: Deploy Application
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ env.DROPLET_IP }}
+          host: ${{ steps.create_droplet.outputs.droplet_ip }}
           username: root
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
@@ -107,4 +108,4 @@ jobs:
             systemctl start streamlit
 
       - name: Output Droplet IP
-        run: echo "Application deployed at http://${{ env.DROPLET_IP }}:8501"
+        run: echo "Application deployed at http://${{ steps.create_droplet.outputs.droplet_ip }}:8501"
