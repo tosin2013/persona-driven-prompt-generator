@@ -2,6 +2,7 @@
 export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -x
 set -euo pipefail
+
 # Variables
 DB_NAME="persona_db"
 DB_USER="persona_user"
@@ -18,39 +19,42 @@ install_postgresql_rhel() {
 
 # Function to install PostgreSQL on Ubuntu
 install_postgresql_ubuntu() {
+    echo "Installing prerequisites..."
+    sudo apt-get install -y curl ca-certificates software-properties-common lsb-release
+    echo "Setting up PostgreSQL repository..."
+    sudo install -d /usr/share/postgresql-common/pgdg
+    sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    echo "Adding PostgreSQL repository..."
+    sudo sh -c "echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
     sudo apt-get update
-    sudo apt-get upgrade -y
-    sudo apt-get install -y dirmngr ca-certificates software-properties-common apt-transport-https lsb-release curl
-    curl -fSsL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor | sudo tee /usr/share/keyrings/postgresql.gpg > /dev/null
-    echo "deb [arch=amd64,arm64,ppc64el signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/postgresql.list
-    sudo apt-get update
-    sudo apt-get install -y postgresql-client-15 postgresql-15
+    echo "Installing PostgreSQL..."
+    sudo apt-get install -y postgresql-17 postgresql-client-17
 }
 
 # Function to install pgvector extension
 install_pgvector() {
     echo "Installing pgvector extension..."
     if [ -f /etc/redhat-release ]; then
-        sudo yum install -y pgvector_15
+        sudo yum install -y pgvector_17
     elif [ -f /etc/lsb-release ]; then
-        sudo apt-get install -y postgresql-15-pgvector
+        sudo apt-get install -y postgresql-17-pgvector
     fi
 }
 
 # Function to cleanup PostgreSQL installation
 cleanup_postgresql() {
     echo "Cleaning up PostgreSQL installation..."
-    if systemctl is-active --quiet postgresql-15; then
-        sudo systemctl stop postgresql-15
-        sudo systemctl disable postgresql-15
+    if systemctl is-active --quiet postgresql-17; then
+        sudo systemctl stop postgresql-17
+        sudo systemctl disable postgresql-17
     fi
     if [ -f /etc/redhat-release ]; then
-        sudo yum remove -y postgresql15-server postgresql15
-        sudo rm -rf /var/lib/pgsql/15/data
+        sudo yum remove -y postgresql17-server postgresql17
+        sudo rm -rf /var/lib/pgsql/17/data
     elif [ -f /etc/lsb-release ]; then
-        sudo pg_dropcluster 15 main --stop
-        sudo apt-get remove --purge -y postgresql-15
-        sudo rm -rf /var/lib/postgresql/15/main
+        sudo pg_dropcluster 17 main --stop
+        sudo apt-get remove --purge -y postgresql-17
+        sudo rm -rf /var/lib/postgresql/17/main
     fi
     echo "PostgreSQL installation cleaned up."
 }
@@ -80,39 +84,51 @@ detect_os_and_install() {
 # Function to remove existing PostgreSQL cluster if it exists
 remove_existing_cluster() {
     echo "Checking for existing PostgreSQL cluster..."
-    if pg_lsclusters | grep -q "15 main"; then
+    if pg_lsclusters | grep -q "17 main"; then
         echo "Existing cluster found. Removing..."
-        sudo pg_dropcluster 15 main --stop
-        sudo rm -rf /etc/postgresql/15/main
-        sudo rm -rf /var/lib/postgresql/15/main
+        sudo pg_dropcluster 17 main --stop
+        sudo rm -rf /etc/postgresql/17/main
+        sudo rm -rf /var/lib/postgresql/17/main
         echo "Existing cluster removed."
+        return 0
     else
         echo "No existing cluster found."
+        return 1
     fi
 }
-
 
 # Check if the data directory is already initialized
 check_data_directory() {
     if [ ! -d "$PG_DATA_DIR" ] || [ ! "$(ls -A $PG_DATA_DIR)" ]; then
-        remove_existing_cluster  # Move this line to ensure the cluster is cleared before checking the data directory
-        echo "Initializing PostgreSQL database..."
-        if [ -f /etc/redhat-release ]; then
-            sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
-        elif [ -f /etc/lsb-release ]; then
-            sudo pg_createcluster 15 main --start
+        if remove_existing_cluster; then
+            echo "Initializing PostgreSQL database..."
+            if [ -f /etc/redhat-release ]; then
+                sudo /usr/pgsql-17/bin/postgresql-17-setup initdb
+            elif [ -f /etc/lsb-release ]; then
+                sudo pg_createcluster 17 main --start
+            fi
+        else
+            echo "PostgreSQL database already initialized. Skipping initdb."
         fi
     else
         echo "PostgreSQL database already initialized. Skipping initdb."
     fi
 }
 
-
 # Start PostgreSQL service
 start_postgresql_service() {
-    sudo systemctl enable postgresql-15
-    sudo systemctl start postgresql-15
+    if systemctl list-units --type=service | grep -q "postgresql.service"; then
+        sudo systemctl enable postgresql
+        sudo systemctl start postgresql
+    elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
+        sudo systemctl enable postgresql-17
+        sudo systemctl start postgresql-17
+    else
+        echo "PostgreSQL service not found. Exiting..."
+        exit 1
+    fi
 }
+
 
 # Get the pg_hba.conf location dynamically
 get_pg_hba_conf_location() {
@@ -133,9 +149,16 @@ update_pg_hba_conf() {
 
 # Reload PostgreSQL configuration
 reload_postgresql_configuration() {
-    sudo systemctl restart postgresql-15
+    echo "Reloading PostgreSQL configuration..."
+    if systemctl list-units --type=service | grep -q "postgresql.service"; then
+        sudo systemctl restart postgresql
+    elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
+        sudo systemctl restart postgresql-17
+    else
+        echo "PostgreSQL service not found. Exiting..."
+        exit 1
+    fi
 }
-
 # Set password for postgres user
 set_postgres_password() {
     echo "Setting postgres user password..."
@@ -171,8 +194,15 @@ grant_privileges() {
 # Create vector extension as superuser
 create_vector_extension() {
     echo "Creating vector extension..."
-    sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;"
+    if sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>&1 | grep -q "Could not open extension control file"; then
+        echo "pgvector extension is not installed. Installing now..."
+        sudo apt install -y postgresql-15-pgvector || { echo "Failed to install pgvector."; exit 1; }
+        sudo systemctl restart postgresql
+        sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;"
+    fi
+    echo "Vector extension created successfully."
 }
+
 
 # Connect to the database and create the table
 create_table() {
@@ -236,8 +266,9 @@ main() {
                 echo "Installing PostgreSQL..."
                 detect_os_and_install
                 install_pgvector
-                remove_existing_cluster  # Add this line to remove existing cluster before creating a new one
-                check_data_directory
+                if remove_existing_cluster; then
+                    check_data_directory
+                fi
                 start_postgresql_service
                 get_pg_hba_conf_location
                 update_pg_hba_conf
@@ -248,10 +279,10 @@ main() {
                 create_user
                 grant_privileges
                 create_vector_extension
-                drop_table  # Add this line to drop the table before creating it
+                drop_table
                 create_table
-                alter_table  # Ensure the table is altered if it already exists
-                create_emotional_tones_table  # Add this line to create the emotional_tones table
+                alter_table
+                create_emotional_tones_table
                 test_database_connection
                 test_table_query
                 echo "Database setup and tests complete."
