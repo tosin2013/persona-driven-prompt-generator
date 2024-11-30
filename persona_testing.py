@@ -102,6 +102,12 @@ def configure_litellm() -> str:
         if not api_key:
             raise ValueError("HUGGINGFACE_API_KEY environment variable not set")
         litellm.HuggingfaceConfig(api_key=api_key)
+    elif provider == "ollama":
+        api_key = os.getenv("OLLAMA_API_KEY")
+        if not api_key:
+            raise ValueError("OLLAMA_API_KEY environment variable not set")
+        # Set the API key directly for OLLAMA
+        litellm.api_key = api_key
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 

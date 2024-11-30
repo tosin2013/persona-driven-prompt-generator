@@ -74,6 +74,7 @@ Before running the application, you need to set up your environment variables to
   - `GROQ_API_KEY` for Groq
   - `DEEPSEEK_API_KEY` for DeepSeek
   - `HUGGINGFACE_API_KEY` for Hugging Face
+  - `OLLAMA_API_KEY` for OLLAMA
 
 ### Setting Environment Variables
 
