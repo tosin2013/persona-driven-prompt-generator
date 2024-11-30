@@ -21,7 +21,7 @@ jobs:
     - name: Launch EC2 instance
       id: ec2
       run: |
-        INSTANCE_ID=$(aws ec2 run-instances --image-id  ${{ secrets.RHEL_AMI }} --count 1 --instance-type m6i.xlarge --key-name githubkey --query 'Instances[0].InstanceId' --output text)
+        INSTANCE_ID=$(aws ec2 run-instances --image-id  ${{ secrets.RHEL_AMI }} --count 1 --instance-type m6i.xlarge --key-name githubkey --subnet-id ${{ secrets.SUBNET_ID }} --query 'Instances[0].InstanceId' --output text)
         echo "::set-output name=instance_id::$INSTANCE_ID"
 
     - name: Wait for EC2 instance to be running
