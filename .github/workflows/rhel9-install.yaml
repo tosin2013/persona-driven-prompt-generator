@@ -71,7 +71,7 @@ jobs:
             username: ec2-user
             key_path: ./githubkey.pem
             script: |
-                sudo subscription-manager register --activationkey="${{ secrets.ACTIVATION_KEY }}" --org=""${{ secrets.ORG_ID }}"
+                sudo subscription-manager register --activationkey="${{ secrets.ACTIVATION_KEY }}" --org="${{ secrets.ORG_ID }}"
                 sudo subscription-manager refresh
                 sudo subscription-manager attach --auto
                 sudo yum update -y
