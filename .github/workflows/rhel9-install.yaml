@@ -71,6 +71,9 @@ jobs:
             username: ec2-user
             key_path: ./githubkey.pem
             script: |
+                sudo subscription-manager register --activationkey="${{ secrets.ACTIVATION_KEY }}" --org=""${{ secrets.ORG_ID }}"
+                sudo subscription-manager refresh
+                sudo subscription-manager attach --auto
                 sudo yum update -y
                 sudo yum install -y python3-pip git
                 git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
