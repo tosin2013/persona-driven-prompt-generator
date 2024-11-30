@@ -18,7 +18,7 @@ jobs:
 
       - name: Create Droplet
         run: |
-          DROPLET_NAME="ubuntu-s-2vcpu-4gb-amd-sfo3-$((RANDOM % 100 + 1))" 
+          DROPLET_NAME="ubuntu-s-2vcpu-4gb-amd-sfo3-$((RANDOM % 100 + 1))"
           doctl compute droplet create $DROPLET_NAME \
             --region sfo3 \
             --image ubuntu-22-04-x64 \

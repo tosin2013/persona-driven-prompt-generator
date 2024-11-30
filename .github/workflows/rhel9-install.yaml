@@ -75,15 +75,21 @@ jobs:
                 sudo subscription-manager refresh
                 sudo subscription-manager attach --auto
                 sudo yum update -y
-                sudo yum install -y python3-pip git
+                sudo yum install -y python3-pip git firewalld coreutils
                 git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
                 cd persona-driven-prompt-generator
                 pip3 install -r requirements.txt
                 bash setup_database.sh -i
+                sudo systemctl start firewalld
+                sudo systemctl enable firewalld
+                sudo firewall-cmd --add-port=8501/tcp --permanent
+                sudo firewall-cmd --reload
                 curl -fsSL https://ollama.com/install.sh | sh
                 export LITELLM_MODEL="ollama/llama2"
                 export LITELLM_PROVIDER="ollama"
                 export LITELLM_API_BASE="http://localhost:11434"
                 export OLLAMA_API_KEY="your-ollama-api-key"
                 ollama pull ${LITELLM_MODEL}
-                streamlit run persona_testing.py
+                nohup streamlit run persona_testing.py > output.log 2>&1 &
+
+
