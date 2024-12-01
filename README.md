@@ -124,6 +124,13 @@ For more detailed information, refer to the [LiteLLM documentation](https://docs
 
 ## Usage
 
+### Optional: Copy and Edit and source the .env file
+```bash
+cp .env.example .env
+vim .env
+source .env
+```
+
 ### Running the Application
 
 Start the Streamlit application by running:
