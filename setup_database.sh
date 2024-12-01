@@ -118,12 +118,13 @@ remove_existing_cluster() {
 
 # Check if the data directory is already initialized
 check_data_directory() {
-    echo "Initializing PostgreSQL database..."
-
     if [ -f /etc/redhat-release ]; then
-        sudo rm -rf /var/lib/pgsql/17/data
+        # Red Hat based system
+        DATA_DIR="/var/lib/pgsql/17/data"
         sudo /usr/pgsql-17/bin/postgresql-17-setup initdb
     elif [ -f /etc/lsb-release ]; then
+        # Debian based system
+        DATA_DIR="/var/lib/postgresql/17/main"
         sudo pg_createcluster 17 main --start
     else
         echo "Unsupported OS"
