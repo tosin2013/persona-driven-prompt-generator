@@ -70,7 +70,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
             host: ${{ steps.ec2-dns.outputs.instance_dns }}
-            username: ec2-user
+            username: ubuntu
             key_path: ./githubkey.pem
             script: |
               sudo apt update -y
