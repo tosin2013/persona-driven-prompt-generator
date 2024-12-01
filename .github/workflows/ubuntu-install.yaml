@@ -74,9 +74,11 @@ jobs:
             key_path: ./githubkey.pem
             script: |
               sudo apt update -y
-              sudo apt install -y python3-pip git ufw coreutils
+              sudo apt install -y python3-pip git ufw coreutils python3.12-venv
               git clone https://github.com/tosin2013/persona-driven-prompt-generator.git
               cd persona-driven-prompt-generator
+              python3 -m venv venv
+              source venv/bin/activate  # On Windows use `venv\Scripts\activate`
               pip3 install -r requirements.txt
               bash setup_database.sh -i
               sudo ufw enable
