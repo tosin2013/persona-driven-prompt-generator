@@ -101,12 +101,18 @@ def configure_litellm() -> str:
         api_key = os.getenv("HUGGINGFACE_API_KEY")
         if not api_key:
             raise ValueError("HUGGINGFACE_API_KEY environment variable not set")
-        litellm.HuggingfaceConfig(api_key=api_key)
+        litellm.api_key = api_key  # Correctly set the API key for Huggingface
     elif provider == "ollama":
         api_key = os.getenv("OLLAMA_API_KEY")
         if not api_key:
             raise ValueError("OLLAMA_API_KEY environment variable not set")
         # Set the API key directly for OLLAMA
+        litellm.api_key = api_key
+    elif provider == "mistral":
+        api_key = os.getenv("MISTRAL_API_KEY")
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY environment variable not set")
+        # Set the API key directly for Mistral
         litellm.api_key = api_key
     else:
         raise ValueError(f"Unsupported provider: {provider}")
@@ -178,7 +184,7 @@ def get_current_task() -> Dict[str, Any]:
         task_details = {"task": result[0], "goals": result[1], "personas": result[2]}
         if st.session_state.prompt is None:
             # Initialize the prompt if not already set
-            st.session_state.prompt = generate_prompt(task_details, task_details["personas"], [], "", [])
+            # st.session_state.prompt = generate_prompt(task_details, task_details["personas"], [], "", [])
             st.session_state.prompt["model"] = os.getenv("LITELLM_MODEL")
         return task_details
     else:
@@ -207,73 +213,6 @@ def page1():
         reference_urls_list = [url.strip() for url in reference_urls.split('\n') if url.strip()]
         logging.debug(f"User input received: task='{task}', goals='{goals}', reference_urls='{reference_urls_list}'")
         return {"task": task, "goals": goals, "reference_urls": reference_urls_list}
-
-    # Function to create a ShellGPT role
-    def create_shellgpt_role(role_name: str, persona: Dict[str, Any]) -> None:
-        description = (
-            f"Role for persona {persona['name']}.\n"
-            f"Background: {persona['background']}\n"
-            f"Goals: {persona['goals']}\n"
-            f"Beliefs: {persona['beliefs']}\n"
-            f"Knowledge: {persona['knowledge']}\n"
-            f"Communication Style: {persona['communication_style']}\n"
-            "APPLY MARKDOWN"
-        )
-        try:
-            result = subprocess.run(
-                ["sgpt", "--create-role", role_name],
-                input=description,
-                text=True,
-                capture_output=True,
-                check=True
-            )
-            if "already exists" in result.stderr:
-                overwrite = input(f"Role '{role_name}' already exists, overwrite it? [y/N]: ")
-                if overwrite.lower() == 'y':
-                    subprocess.run(
-                        ["sgpt", "--create-role", role_name, "--overwrite"],
-                        input=description,
-                        text=True,
-                        check=True
-                    )
-                    logging.info(f"ShellGPT role '{role_name}' overwritten successfully.")
-                else:
-                    logging.info(f"Aborted overwriting ShellGPT role '{role_name}'.")
-            else:
-                logging.info(f"ShellGPT role '{role_name}' created successfully.")
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Failed to create ShellGPT role '{role_name}': {e.stderr.strip()}")
-        except Exception as e:
-            logging.error(f"Unexpected error occurred while creating ShellGPT role '{role_name}': {e}")
-
-    # Function to delete a ShellGPT role by removing the role file
-    def delete_shellgpt_role(role_name: str) -> None:
-        role_file_path = Path.home() / ".config" / "shell_gpt" / "roles" / f"{role_name}.json"
-        try:
-            if role_file_path.exists():
-                role_file_path.unlink()
-                logging.info(f"ShellGPT role '{role_name}' deleted successfully.")
-            else:
-                logging.warning(f"ShellGPT role '{role_name}' does not exist.")
-        except Exception as e:
-            logging.error(f"Unexpected error occurred while deleting ShellGPT role '{role_name}': {e}")
-
-    # Function to generate a ShellGPT role for each persona
-    def generate_shellgpt_roles(personas: List[Dict[str, Any]]) -> None:
-        roles_dir = Path.home() / ".config" / "shell_gpt" / "roles"
-        existing_roles = [role.stem for role in roles_dir.glob("*.json")]
-
-        persona_role_names = [persona["name"].replace(" ", "_").lower() for persona in personas]
-
-        # Delete roles that do not match current personas
-        for role in existing_roles:
-            if role not in persona_role_names:
-                delete_shellgpt_role(role)
-
-        # Create or update roles for current personas
-        for persona in personas:
-            role_name = persona["name"].replace(" ", "_").lower()
-            create_shellgpt_role(role_name, persona)
 
     # Step 2: Generate Personas
     def generate_personas(task_details: Dict[str, Any], persona_count: int = 2) -> List[Dict[str, Any]]:
@@ -689,13 +628,6 @@ def page1():
                     content = line.split(':', 1)[1].strip() if ':' in line else line
                     messages.append({"role": speaker.lower(), "content": content})
             
-            # Pass the initial conversation to sgpt
-            subprocess.run(
-                ["sgpt", "--chat", "conversation_1", conversation],
-                text=True,
-                check=True
-            )
-            
             return messages
         except Exception as e:
             logging.error(f"Error generating initial conversation: {e}")
@@ -845,10 +777,6 @@ def page1():
         create_tables()  # Ensure tables are created
         task_details = get_user_input()
         
-        if not task_details["task"] or not task_details["goals"]:
-            st.error("Please provide both the task description and goals.")
-            return
-        
         # Ensure environment variables for LiteLLM are set
         if not os.getenv("LITELLM_MODEL") or not os.getenv("LITELLM_PROVIDER"):
             st.error("Error: LITELLM_MODEL and LITELLM_PROVIDER environment variables must be set.")
@@ -860,12 +788,10 @@ def page1():
         # Persona Tuner
         persona_count = st.sidebar.slider("How many personas would you like to include?", 1, 20, 2)
         
+        # Show all buttons at startup
         if st.sidebar.button("Submit"):
             with st.spinner("Generating personas and prompt..."):
                 personas = generate_personas(task_details, persona_count=persona_count)
-                
-                # Generate ShellGPT roles for each persona
-                generate_shellgpt_roles(personas)
                 
                 # Knowledge Sources
                 knowledge_sources = fetch_knowledge_sources(task_details["task"])
@@ -993,9 +919,9 @@ def page1():
             current_task = get_current_task()
             if "error" not in current_task:
                 formatted_prompt = format_prompt_for_llm(current_task, current_task["personas"])
-                #st.session_state.prompt = {"model": os.getenv("LITELLM_MODEL"), "content": formatted_prompt}
-                #st.session_state.messages.append({"role": "system", "content": formatted_prompt})
-                #st.success("Prompt initialized and loaded for chat.")
+                st.session_state.prompt = {"model": os.getenv("LITELLM_MODEL"), "content": formatted_prompt}
+                st.session_state.messages.append({"role": "system", "content": formatted_prompt})
+                st.success("Prompt initialized and loaded for chat.")
                 
                 # Submit the prompt to the LLM
                 api_key = os.getenv("LITELLM_API_KEY")

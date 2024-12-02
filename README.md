@@ -35,6 +35,10 @@ Welcome to the **Persona-Driven Prompt Generator**! This application allows you 
 - An API key from one of the supported LLM providers (e.g., OpenAI, Groq, DeepSeek, Hugging Face)
 - Internet connection (to interact with the LLM APIs)
 
+![20241201195617](https://i.imgur.com/N5satgR.png)
+
+![20241201200025](https://i.imgur.com/5D5bjXk.png)
+
 ## Installation
 
 1. **Clone the Repository**
@@ -269,6 +273,12 @@ The application supports the following LLM providers via LiteLLM:
   - Requires `HUGGINGFACE_API_KEY`.
 
 > **Note**: Ensure you have valid API keys and necessary permissions to use the services.
+---
+## Kwown Issues
+
+- You have to manually copy the generated prmopt into the chat to interact with the bot.
+- There may be Rag database clean up with the current implementation.
+
 
 ---
 
@@ -293,6 +303,12 @@ The application supports the following LLM providers via LiteLLM:
 
   - Ensure all required environment variables are set before running the application.
   - Missing variables will result in `ValueError` exceptions.
+
+---
+
+## Help Needed
+- I need help with the streamlit interface to interact with the bot. Better menu navibation and i am having issues importing the conext into the chat.
+- I do not know if the current implementation is the best way to go inteacting withthe team. I am open to suggestions.
 
 ---
 
