@@ -124,8 +124,9 @@ check_data_directory() {
         sudo /usr/pgsql-17/bin/postgresql-17-setup initdb
     elif [ -f /etc/lsb-release ]; then
         # Debian based system
-        DATA_DIR="/var/lib/postgresql/17/main"
-        sudo pg_createcluster 17 main --start
+        DATA_DIR="/var/lib/postgresql/17/data"
+        sudo rm -rf ${DATA_DIR}
+        sudo pg_createcluster 17 data --start
     else
         echo "Unsupported OS"
         exit 1
@@ -134,15 +135,9 @@ check_data_directory() {
 
 # Start PostgreSQL service
 start_postgresql_service() {
-    if systemctl list-units --type=service | grep -q "postgresql@17-main.service"; then
-        sudo systemctl enable postgresql@17-main
-        sudo systemctl start postgresql@17-main
-    elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
-        sudo systemctl enable postgresql-17
-        sudo systemctl start postgresql-17
-    elif systemctl list-units --type=service | grep -q "postgresql.service"; then
-        sudo systemctl enable postgresql
-        sudo systemctl start postgresql
+    if [ -f /etc/lsb-release ]; then
+        sudo systemctl enable postgresql.service
+        sudo systemctl start postgresql.service
     elif [ -f /etc/redhat-release ]; then
         echo "PostgreSQL service not found on RHEL. Attempting to start manually..."
         if [ ! -z "$(sudo ls -A /var/lib/pgsql/17/data)" ]; then
@@ -178,10 +173,8 @@ update_pg_hba_conf() {
 # Reload PostgreSQL configuration
 reload_postgresql_configuration() {
     echo "Reloading PostgreSQL configuration..."
-    if systemctl list-units --type=service | grep -q "postgresql.service"; then
-        sudo systemctl restart postgresql
-    elif systemctl list-units --type=service | grep -q "postgresql-17.service"; then
-        sudo systemctl restart postgresql-17
+    if [ -f /etc/lsb-release ]; then
+        sudo systemctl restart  postgresql.service
     elif [ -f /etc/redhat-release ]; then
         sudo systemctl restart postgresql-17
     else
