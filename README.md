@@ -65,6 +65,7 @@ Welcome to the **Persona-Driven Prompt Generator**! This application allows you 
    ./setup_database.sh
    ```
 
+
 ## Configuration
 
 To configure LiteLLM effectively, you need to set specific environment variables tailored to your chosen LLM provider. Below are examples for each supported provider:
@@ -123,6 +124,11 @@ For Ollama, set `LITELLM_API_BASE` to the base URL where the Ollama service is r
 **Note:** Replace placeholder values (e.g., `your-openai-api-key`) with your actual API keys. For enhanced security, consider using a `.env` file to manage these variables. Ensure that the `LITELLM_MODEL` corresponds to a model supported by your specified provider.
 
 For more detailed information, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/). 
+---
+## Prompt Testing 
+* You can test the prompts witht this site or deploy your own
+
+* https://www.persona-driven-prompt-generator.com/ built on https://github.com/lobehub/lobe-chat
 
 ---
 
