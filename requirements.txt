@@ -2,7 +2,6 @@ litellm
 streamlit
 PyYAML
 pyperclip
-shell-gpt
 pyperclip
 psycopg2-binary  # Replace psycopg2 with psycopg2-binary
 autogenstudio
