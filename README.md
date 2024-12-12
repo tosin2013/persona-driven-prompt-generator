@@ -130,6 +130,10 @@ For more detailed information, refer to the [LiteLLM documentation](https://docs
 
 * https://www.persona-driven-prompt-generator.com/ built on https://github.com/lobehub/lobe-chat
 
+## Test using Autogen Studio as well
+
+* https://github.com/microsoft/autogen/blob/main/python/packages/autogen-studio/README.md
+
 ---
 
 ## Usage
