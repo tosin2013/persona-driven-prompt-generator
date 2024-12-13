@@ -13,6 +13,9 @@ from advanced_menu import page2
 from page1 import page1
 from config import DB_NAME, DB_USER, DB_PASSWORD, DB_HOST
 
+# Set environment variables with defaults if not already set
+os.environ['LITELLM_MODEL'] = os.environ.get('LITELLM_MODEL', 'gpt-4o')
+os.environ['LITELLM_PROVIDER'] = os.environ.get('LITELLM_PROVIDER', 'openai') 
 
 # Configure logging at the beginning of the script
 logging.basicConfig(
