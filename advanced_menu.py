@@ -2,6 +2,8 @@ import streamlit as st
 from psycopg2 import connect
 from psycopg2.extras import Json
 from typing import List, Dict, Any
+from streamlit_option_menu import option_menu
+from page1 import page1
 
 # Database connection details
 DB_NAME = "persona_db"
@@ -237,3 +239,23 @@ def page2():
         st.markdown("#### Chat Log")
         for message in st.session_state.chat_log:
             st.markdown(message)
+
+def main():
+    with st.sidebar:
+        page = option_menu(
+            "Navigation",
+            ["Home", "Advanced Menu", "Settings"],
+            icons=["house", "gear", "tools"],
+            menu_icon="cast",
+            default_index=0,
+        )
+
+    if page == "Home":
+        page1()
+    elif page == "Advanced Menu":
+        page2()
+    elif page == "Settings":
+        page3()
+
+if __name__ == "__main__":
+    main()

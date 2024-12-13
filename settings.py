@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import clear_database
+# from utils import generate_embedding  # Only import specific function if needed
 import litellm
 
 def page3():
