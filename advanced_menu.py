@@ -3,7 +3,7 @@ from psycopg2 import connect
 from psycopg2.extras import Json
 from typing import List, Dict, Any
 from streamlit_option_menu import option_menu
-from page1 import page1
+from homepage import page1
 
 # Database connection details
 DB_NAME = "persona_db"

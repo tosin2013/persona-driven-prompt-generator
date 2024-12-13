@@ -10,7 +10,7 @@ from streamlit_option_menu import option_menu
 from utils import create_tables, configure_litellm, fetch_personas_from_db, get_current_task
 from settings import page3
 from advanced_menu import page2
-from page1 import page1
+from homepage import page1, chat_interaction
 from config import DB_NAME, DB_USER, DB_PASSWORD, DB_HOST
 
 # Set environment variables with defaults if not already set
@@ -68,8 +68,8 @@ def main():
     with st.sidebar:
         page = option_menu(
             "Navigation",
-            ["Home", "Advanced Menu", "Settings"],
-            icons=["house", "gear", "tools"],
+            ["Home", "Advanced Menu", "Settings", "Chat Interaction"],
+            icons=["house", "gear", "tools", "chat"],
             menu_icon="cast",
             default_index=0,
         )
@@ -80,6 +80,8 @@ def main():
         page2()
     elif page == "Settings":
         page3()
+    elif page == "Chat Interaction":
+        chat_interaction(MODEL)
 
 if __name__ == "__main__":
     create_tables()
