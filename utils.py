@@ -6,6 +6,8 @@ import re
 from typing import List, Dict, Any
 from psycopg2 import connect
 from psycopg2.extras import Json
+import litellm
+
 
 # Database connection details
 DB_NAME = "persona_db"
