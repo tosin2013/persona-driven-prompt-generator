@@ -12,6 +12,7 @@ from settings import page3
 from advanced_menu import page2
 from homepage import page1, chat_interaction
 from config import DB_NAME, DB_USER, DB_PASSWORD, DB_HOST
+from shared_functions import generate_prompt
 
 # Set environment variables with defaults if not already set
 os.environ['LITELLM_MODEL'] = os.environ.get('LITELLM_MODEL', 'gpt-4o')

@@ -2,8 +2,7 @@ litellm
 streamlit
 PyYAML
 pyperclip
-pyperclip
 psycopg2-binary  # Replace psycopg2 with psycopg2-binary
 autogenstudio
 pytest
-streamlit_option_menu
+streamlit-option-menu

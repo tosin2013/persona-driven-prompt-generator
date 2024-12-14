@@ -1,6 +1,37 @@
 import streamlit as st
-# from utils import generate_embedding  # Only import specific function if needed
 import litellm
+import psycopg2
+from config import DB_NAME, DB_USER, DB_PASSWORD, DB_HOST
+
+def clear_database():
+    """Clear all data from the database tables."""
+    try:
+        # Connect to the database
+        conn = psycopg2.connect(
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST
+        )
+        cur = conn.cursor()
+
+        # List of tables to clear
+        tables = ['personas', 'tasks', 'knowledge_sources', 'chat_history']
+
+        # Clear each table
+        for table in tables:
+            cur.execute(f"TRUNCATE TABLE {table} CASCADE;")
+
+        # Commit the changes
+        conn.commit()
+
+        # Close the connection
+        cur.close()
+        conn.close()
+
+        st.success("Database cleared successfully.")
+    except Exception as e:
+        st.error(f"Error clearing database: {str(e)}")
 
 def page3():
     st.title("Settings")
