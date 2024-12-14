@@ -27,3 +27,10 @@ htmlcov/
 # Generated files
 prompt.json
 example_result.md
+*_orig.py
+*.bak
+*.tmp
+
+# Local configuration
+.DS_Store
+Thumbs.db
