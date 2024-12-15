@@ -1,10 +1,78 @@
+from typing import Dict, Any, List
 import streamlit as st
 import json
 import time
-from typing import Dict, Any
+from streamlit_option_menu import option_menu
+from ui_components import (
+    UIConfig,
+    create_download_buttons,
+    display_persona_details,
+    display_knowledge_sources,
+    create_markdown_content
+)
+from shared_functions import (
+    generate_personas,
+    enhance_task_description,
+    generate_prompt as generate_base_prompt
+)
 import litellm
 import threading
-from shared_functions import generate_prompt, generate_personas
+
+# Configure the model
+MODEL = litellm.completion
+
+def display_prompt(prompt: Dict[str, Any]) -> None:
+    """
+    Displays the generated prompt in a structured format.
+    
+    Args:
+        prompt (Dict[str, Any]): The prompt data to display
+    """
+    st.markdown("### Generated Prompt")
+    
+    # Display original and enhanced task information
+    with st.expander("📝 Task Details", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**Original Task:**")
+            st.markdown(prompt.get('original_task', 'N/A'))
+            st.markdown("**Original Goals:**")
+            st.markdown(prompt.get('original_goals', 'N/A'))
+        with col2:
+            st.markdown("**Enhanced Task:**")
+            st.markdown(prompt['task'])
+            st.markdown("**Enhanced Goals:**")
+            st.markdown(prompt['goals'])
+    
+    # Display personas
+    st.markdown("### Personas")
+    for persona in prompt['full_personas']:
+        display_persona_details(persona)
+    
+    # Create markdown content
+    markdown_content = create_markdown_content(
+        prompt=prompt,
+        personas=prompt['full_personas'],
+        knowledge_sources=prompt['knowledge_sources']
+    )
+    
+    # Display knowledge sources
+    display_knowledge_sources(prompt['knowledge_sources'])
+    
+    st.markdown(f"**Conflict Resolution Strategy:** {prompt['conflict_resolution']}")
+    st.markdown(f"**Instructions:** {prompt['instructions']}")
+
+    # Create columns for the buttons
+    col1, col2 = st.columns(2)
+    create_download_buttons(
+        prompt=prompt,
+        markdown_content=markdown_content,
+        button_counter=st.session_state.button_counter,
+        col1=col1,
+        col2=col2
+    )
+    # Increment counter after using it
+    st.session_state.button_counter += 1
 
 def page1():
     # Initialize button counter if it doesn't exist
@@ -65,7 +133,9 @@ def page1():
 
     # Sidebar setup for workflow type selection and AutoGen workflow enabling
     workflow_type = st.sidebar.selectbox(
-        "AutoGen Workflow Type", ["Autonomous (Chat)", "Sequential"]
+        "AutoGen Workflow Type", 
+        ["Autonomous (Chat)", "Sequential"],
+        key="workflow_type_selectbox"
     )
     num_personas = st.sidebar.slider(
         "Number of Personas",
@@ -75,128 +145,6 @@ def page1():
         help="Select the number of personas to generate (1-50)"
     )
     autogen_workflow = st.sidebar.checkbox("Enable AutoGen Workflow", value=False)
-
-    # Function to display the generated prompt in a dialog
-    def display_prompt(prompt: Dict[str, Any]) -> None:
-        st.markdown("### Generated Prompt")
-        
-        # Display original and enhanced task information
-        with st.expander("📝 Task Details", expanded=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**Original Task:**")
-                st.markdown(prompt.get('original_task', 'N/A'))
-                st.markdown("**Original Goals:**")
-                st.markdown(prompt.get('original_goals', 'N/A'))
-            with col2:
-                st.markdown("**Enhanced Task:**")
-                st.markdown(prompt['task'])
-                st.markdown("**Enhanced Goals:**")
-                st.markdown(prompt['goals'])
-        
-        # Create markdown content for copying
-        markdown_content = [
-            "# Generated Prompt\n",
-            "## Original Task Details\n",
-            f"**Task:** {prompt.get('original_task', 'N/A')}\n",
-            f"**Goals:** {prompt.get('original_goals', 'N/A')}\n\n",
-            "## Enhanced Task Details\n",
-            f"**Task:** {prompt['task']}\n",
-            f"**Goals:** {prompt['goals']}\n\n",
-            "## Personas\n"
-        ]
-        
-        # Display detailed persona information
-        st.markdown("### Personas")
-        for persona in prompt['full_personas']:
-            # Display in UI
-            with st.expander(f" {persona['name']}"):
-                st.markdown(f"**Background:** {persona['background']}")
-                st.markdown(f"**Goals:** {persona['goals']}")
-                st.markdown(f"**Beliefs:** {persona['beliefs']}")
-                st.markdown(f"**Knowledge:** {persona['knowledge']}")
-                st.markdown(f"**Communication Style:** {persona['communication_style']}")
-                st.markdown(f"**Role:** {persona['role']}")
-                st.markdown(f"**Strengths:** {persona['strengths']}")
-                st.markdown(f"**Challenges:** {persona['challenges']}")
-            
-            # Add to markdown content
-            markdown_content.extend([
-                f"### {persona['name']}\n",
-                f"- **Background:** {persona['background']}\n",
-                f"- **Goals:** {persona['goals']}\n",
-                f"- **Beliefs:** {persona['beliefs']}\n",
-                f"- **Knowledge:** {persona['knowledge']}\n",
-                f"- **Communication Style:** {persona['communication_style']}\n",
-                f"- **Role:** {persona['role']}\n",
-                f"- **Strengths:** {persona['strengths']}\n",
-                f"- **Challenges:** {persona['challenges']}\n\n"
-            ])
-        
-        # Format and display knowledge sources
-        st.markdown("### Knowledge Sources")
-        knowledge_sources_formatted = "\n".join([
-            f"- [{source['title']}]({source['url']})"
-            for source in prompt['knowledge_sources']
-        ])
-        st.markdown(knowledge_sources_formatted if knowledge_sources_formatted else "No knowledge sources provided")
-        
-        # Add knowledge sources to markdown content
-        markdown_content.append("## Knowledge Sources\n")
-        for source in prompt['knowledge_sources']:
-            markdown_content.append(f"- [{source['title']}]({source['url']})\n")
-        
-        st.markdown(f"**Conflict Resolution Strategy:** {prompt['conflict_resolution']}")
-        st.markdown(f"**Instructions:** {prompt['instructions']}")
-        
-        # Add remaining sections to markdown content
-        markdown_content.extend([
-            f"\n## Conflict Resolution Strategy\n{prompt['conflict_resolution']}\n",
-            f"\n## Instructions\n{prompt['instructions']}\n"
-        ])
-
-        # Combine all markdown content
-        full_markdown = "".join(markdown_content)
-
-        # Create columns for the buttons
-        col1, col2 = st.columns(2)
-        
-        # Column 1: Copy to Markdown
-        with col1:
-            st.download_button(
-                label="Copy to Markdown",
-                data=full_markdown,
-                file_name="prompt.md",
-                mime="text/markdown",
-                help="Click to copy the content in markdown format",
-                key=f"download_markdown_{st.session_state.button_counter}"
-            )
-            # Increment counter after using it
-            st.session_state.button_counter += 1
-            # Also display the markdown content in a collapsible section
-            with st.expander("View Markdown"):
-                st.code(full_markdown, language="markdown")
-
-        # Column 2: Download options
-        with col2:
-            file_format = st.selectbox("Choose file format:", ["json", "yaml"])
-            if file_format == "json":
-                st.download_button(
-                    label="Download JSON",
-                    data=json.dumps(prompt, indent=4),
-                    file_name="prompt.json",
-                    mime="application/json"
-                )
-            else:
-                import yaml
-                yaml_content = yaml.dump(prompt, default_flow_style=False)
-                st.download_button(
-                    label="Copy to YAML",
-                    data=yaml_content,
-                    file_name="prompt.yaml",
-                    mime="text/yaml",
-                    key="download_yaml"
-                )
 
     # Initialize session state for clearing
     if 'clear_form' not in st.session_state:
@@ -292,13 +240,66 @@ def page1():
     if 'current_prompt' in st.session_state:
         display_prompt(st.session_state.current_prompt)
 
-def resolve_conflicts(personas: list) -> str:
-    # Placeholder function to resolve conflicts between personas
-    return "No conflicts detected."
+def resolve_conflicts(personas: List[Dict[str, Any]]) -> str:
+    """
+    Resolve conflicts between personas using LLM.
+    
+    Args:
+        personas (List[Dict[str, Any]]): List of personas to analyze
+        
+    Returns:
+        str: Conflict resolution strategy
+    """
+    try:
+        response = MODEL(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Analyze the personas and suggest a conflict resolution strategy."
+                },
+                {
+                    "role": "user",
+                    "content": f"Personas: {json.dumps(personas, indent=2)}\nProvide a conflict resolution strategy."
+                }
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"Error generating conflict resolution: {e}")
+        return "No conflicts detected."
 
-def generate_instructions(task_description: str, goals: str, knowledge_sources: list) -> str:
-    # Placeholder function to generate instructions based on task description, goals, and knowledge sources
-    return f"Complete the task: {task_description} with the following goals: {goals} and refer to the provided knowledge sources."
+def generate_instructions(task_description: str, goals: str, knowledge_sources: List[Dict[str, str]]) -> str:
+    """
+    Generate instructions based on task description, goals, and knowledge sources.
+    
+    Args:
+        task_description (str): Description of the task
+        goals (str): Task goals
+        knowledge_sources (List[Dict[str, str]]): List of knowledge sources
+        
+    Returns:
+        str: Generated instructions
+    """
+    try:
+        sources_text = "\n".join([f"- {source['title']}: {source['url']}" for source in knowledge_sources])
+        response = MODEL(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Generate clear instructions for completing the task based on the provided information."
+                },
+                {
+                    "role": "user",
+                    "content": f"Task: {task_description}\nGoals: {goals}\nKnowledge Sources:\n{sources_text}\n\nGenerate instructions."
+                }
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"Error generating instructions: {e}")
+        return f"Complete the task: {task_description} with the following goals: {goals} and refer to the provided knowledge sources."
 
 def save_prompt_to_file(prompt: Dict[str, Any], file_format: str) -> None:
     # Placeholder function to save the prompt to a file in the selected format
@@ -353,7 +354,7 @@ def chat_interaction(MODEL):
             ]
             
             # Generate prompt with configurations
-            config = generate_prompt(
+            config = generate_base_prompt(
                 task_details=task_details,
                 personas=personas,
                 knowledge_sources=[{"title": "General Knowledge", "url": ""}],
@@ -390,8 +391,7 @@ def chat_interaction(MODEL):
                 messages = st.session_state.messages
 
             # Get response from LLM
-            response = litellm.completion(
-                model=MODEL,
+            response = MODEL(
                 messages=messages,
                 temperature=0.7
             )
@@ -414,8 +414,7 @@ def chat_interaction(MODEL):
                 auto_message = "Auto message"
                 
             st.session_state.messages.append({"role": "user", "content": auto_message})
-            response = litellm.completion(
-                model=MODEL,
+            response = MODEL(
                 messages=st.session_state.messages,
                 temperature=0.7
             )

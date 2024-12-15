@@ -5,6 +5,9 @@ import litellm
 import re
 from utils import configure_litellm
 
+# Add logging configuration at the beginning of the file
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 def enhance_task_description(task: str, goals: str) -> Dict[str, str]:
     """
     Enhance the task description and goals using LLM to make them more detailed and structured.
@@ -101,17 +104,22 @@ def generate_personas(task_details: Dict[str, Any], persona_count: int = 2) -> L
                     "You are an expert in creating diverse and well-defined personas for collaborative tasks. "
                     "Your goal is to generate personas that will work together effectively while maintaining unique perspectives. "
                     "Each persona should be distinct and contribute meaningfully to the task at hand. "
+                    "For tasks with more than 2 personas, ensure each persona has:\n"
+                    "1. A unique and culturally appropriate professional name\n"
+                    "2. A distinct professional background that complements but doesn't overlap with other personas\n"
+                    "3. Specialized expertise that adds value to the task\n"
+                    "4. A clear role that differentiates them from other team members\n\n"
                     "Generate the personas in JSON format ONLY, without any additional text or explanations.\n\n"
                     "Each persona must include:\n"
-                    "- name: A distinctive, professional name\n"
-                    "- background: Relevant expertise and experience\n"
-                    "- goals: Personal and professional objectives\n"
-                    "- beliefs: Core values and principles\n"
-                    "- knowledge: Specific areas of expertise\n"
-                    "- communication_style: How they interact with others\n"
-                    "- role: Their primary function in the task\n"
-                    "- strengths: Key capabilities\n"
-                    "- challenges: Areas they might struggle with"
+                    "- name: A distinctive, professional name that reflects their background\n"
+                    "- background: Detailed expertise and experience, including years of experience and specific domains\n"
+                    "- goals: Clear personal and professional objectives aligned with their role\n"
+                    "- beliefs: Core values and principles that guide their work\n"
+                    "- knowledge: Specific areas of expertise with concrete examples\n"
+                    "- communication_style: Detailed description of how they interact with others\n"
+                    "- role: Their primary function and unique contribution to the task\n"
+                    "- strengths: Key capabilities that set them apart\n"
+                    "- challenges: Realistic areas they might struggle with"
                 )
             },
             {
@@ -195,9 +203,37 @@ def generate_default_personas(count: int) -> List[Dict[str, Any]]:
 def generate_prompt(task_details: Dict[str, str], personas: List[Dict[str, Any]], 
                    knowledge_sources: List[Dict[str, str]], conflict_strategy: str, 
                    prior_decisions: List[str]) -> Dict[str, Any]:
+    """
+    Generates a prompt based on task details, personas, knowledge sources, conflict strategy, and prior decisions.
+
+    Args:
+        task_details (Dict[str, str]): A dictionary containing details about the task.
+        personas (List[Dict[str, Any]]): A list of dictionaries representing personas.
+        knowledge_sources (List[Dict[str, str]]): A list of dictionaries representing knowledge sources.
+        conflict_strategy (str): The conflict strategy to be used.
+        prior_decisions (List[str]): A list of prior decisions.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the generated prompt.
+
+    Raises:
+        Exception: If there is an error generating agent configuration or workflow configuration.
+
+    Examples:
+        >>> task_details = {"task": "Task 1"}
+        >>> personas = [{"name": "Persona 1", "background": "Background 1", "goals": "Goals 1", "beliefs": "Beliefs 1", "knowledge": "Knowledge 1", "communication_style": "Communication Style 1"}]
+        >>> knowledge_sources = [{"title": "Source 1", "url": "URL 1"}]
+        >>> conflict_strategy = "Strategy 1"
+        >>> prior_decisions = ["Decision 1"]
+        >>> generate_prompt(task_details, personas, knowledge_sources, conflict_strategy, prior_decisions)
+    """
+    logging.info("generate_prompt called")  # Log the function call
     model = configure_litellm()
     agent_configs = {}
-    
+
+    # Clear previous outputs
+    print("\n" + "="*50 + "\n")
+
     # Generate agent configuration for each persona
     for persona in personas:
         try:
@@ -229,14 +265,14 @@ def generate_prompt(task_details: Dict[str, str], personas: List[Dict[str, Any]]
                 ],
                 temperature=0.7
             )
-            
+
             agent_config = json.loads(response.choices[0].message.content.strip())
             agent_configs[persona['name']] = agent_config
-            
+
         except Exception as e:
             logging.error(f"Error generating agent configuration for {persona['name']}: {e}")
             agent_configs[persona['name']] = {}
-    
+
     # Generate workflow configuration
     try:
         workflow_response = litellm.completion(
@@ -261,13 +297,13 @@ def generate_prompt(task_details: Dict[str, str], personas: List[Dict[str, Any]]
             ],
             temperature=0.7
         )
-        
+
         workflow_config = json.loads(workflow_response.choices[0].message.content.strip())
-        
+
     except Exception as e:
         logging.error(f"Error generating workflow configuration: {e}")
         workflow_config = {}
-    
+
     # Construct the final output
     output = {
         "agent_configs": agent_configs,
@@ -284,9 +320,9 @@ def generate_prompt(task_details: Dict[str, str], personas: List[Dict[str, Any]]
             "prior_decisions": prior_decisions
         }
     }
-    
+
     # Print the constructed output
     print("\nGenerated Configuration:")
     print(json.dumps(output, indent=4))
-    
+
     return output

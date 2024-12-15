@@ -212,7 +212,12 @@ def page2():
         persona["beliefs"] = st.text_input(f"Beliefs for {persona['name']}", value=persona.get("beliefs", ""))
         persona["knowledge"] = st.text_input(f"Knowledge for {persona['name']}", value=persona.get("knowledge", ""))
         persona["communication_style"] = st.text_input(f"Communication Style for {persona['name']}", value=persona.get("communication_style", ""))
-        persona["emotional_tone"] = st.selectbox(f"Emotional Tone for {persona['name']}", options=emotional_tones, index=emotional_tones.index(persona.get("emotional_tone", "neutral")))
+        persona["emotional_tone"] = st.selectbox(
+            f"Emotional Tone for {persona['name']}", 
+            options=emotional_tones, 
+            index=emotional_tones.index(persona.get("emotional_tone", "neutral")),
+            key=f"emotional_tone_selectbox_{persona['name']}"
+        )
 
     if st.button("Save Changes"):
         update_persona_in_db(personas)

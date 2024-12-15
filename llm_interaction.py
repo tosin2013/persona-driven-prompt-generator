@@ -4,9 +4,15 @@ import litellm
 import streamlit as st
 import random
 import time
+from typing import List, Dict, Any
 
 def configure_litellm() -> str:
-    """Configure LiteLLM based on environment variables."""
+    """
+    Configure LiteLLM based on environment variables.
+
+    Returns:
+        str: The model name configured for LiteLLM.
+    """
     model = os.getenv("LITELLM_MODEL")
     provider = os.getenv("LITELLM_PROVIDER")
 
@@ -15,43 +21,50 @@ def configure_litellm() -> str:
 
     logging.debug(f"Configuring LiteLLM with model='{model}', provider='{provider}'")
 
-    if provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-        litellm.api_key = api_key  # Set the API key directly for OpenAI
-    elif provider == "groq":
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise ValueError("GROQ_API_KEY environment variable not set")
-        # No specific configuration class for Groq; ensure the API key is set as an environment variable
-    elif provider == "deepseek":
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-        if not api_key:
-            raise ValueError("DEEPSEEK_API_KEY environment variable not set")
-        # Set the API key directly for Deepseek
-        litellm.api_key = api_key
-    elif provider == "huggingface":
-        api_key = os.getenv("HUGGINGFACE_API_KEY")
-        if not api_key:
-            raise ValueError("HUGGINGFACE_API_KEY environment variable not set")
-        litellm.api_key = api_key  # Correctly set the API key for Huggingface
-    elif provider == "ollama":
-        api_key = os.getenv("OLLAMA_API_KEY")
-        if not api_key:
-            raise ValueError("OLLAMA_API_KEY environment variable not set")
-        # Set the API key directly for OLLAMA
-        litellm.api_key = api_key
-    elif provider == "mistral":
-        api_key = os.getenv("MISTRAL_API_KEY")
-        if not api_key:
-            raise ValueError("MISTRAL_API_KEY environment variable not set")
-        # Set the API key directly for Mistral
-        litellm.api_key = api_key
-    else:
+    api_key_env_map = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "huggingface": "HUGGINGFACE_API_KEY",
+        "ollama": "OLLAMA_API_KEY",
+        "mistral": "MISTRAL_API_KEY",
+    }
+
+    api_key_env = api_key_env_map.get(provider)
+    if not api_key_env:
         raise ValueError(f"Unsupported provider: {provider}")
 
+    api_key = os.getenv(api_key_env)
+    if not api_key:
+        raise ValueError(f"{api_key_env} environment variable not set")
+
+    litellm.api_key = api_key
     return model
+
+def generate_persona_prompt(persona: Dict[str, Any]) -> str:
+    """
+    Generate a prompt for a given persona.
+
+    Args:
+        persona (Dict[str, Any]): The persona dictionary.
+
+    Returns:
+        str: The generated prompt.
+    """
+    emotional_tone = persona.get('emotional_tone', 'neutral')
+    return f"{persona['name']} ({emotional_tone}): {persona['goals']}"
+
+def update_ui_with_message(persona_name: str, message: str) -> None:
+    """
+    Update the UI with a new message from a persona.
+
+    Args:
+        persona_name (str): The name of the persona.
+        message (str): The message to display.
+    """
+    st.session_state.messages.append({"role": "system", "content": f"{persona_name}: {message}"})
+    with st.chat_message("system"):
+        st.markdown(f"{persona_name}: {message}")
 
 def autochat(personas: List[Dict[str, Any]], num_users: int) -> None:
     """
@@ -66,20 +79,14 @@ def autochat(personas: List[Dict[str, Any]], num_users: int) -> None:
     for i in range(10):  # Simulate 10 exchanges
         for _ in range(num_users):
             persona = random.choice(personas)
-            emotional_tone = persona.get('emotional_tone', 'neutral')
-            prompt = f"{persona['name']} ({emotional_tone}): {persona['goals']}"
+            prompt = generate_persona_prompt(persona)
             response = litellm.completion(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7
             )
             message = response.choices[0].message.content.strip()
-            st.session_state.messages.append({"role": "system", "content": f"{persona['name']}: {message}"})
-            
-            # Update UI dynamically by appending messages directly
-            with st.chat_message("system"):
-                st.markdown(f"{persona['name']}: {message}")
-            
+            update_ui_with_message(persona['name'], message)
             time.sleep(1)  # Sleep for 1 second between responses
 
 def interact_with_llm(prompt: str) -> str:
@@ -135,6 +142,15 @@ def submit_prompt_to_llm(prompt: str, api_key: str = None, temperature: float = 
 
         # Extract the content from the response
         return response['choices'][0]['message']['content'].strip()
+    except litellm.exceptions.APIError as e:
+        logging.error(f"LiteLLM API Error: {e}")
+        return f"An API error occurred: {e}"
+    except litellm.exceptions.AuthenticationError as e:
+        logging.error(f"LiteLLM Authentication Error: {e}")
+        return f"An authentication error occurred: {e}"
+    except litellm.exceptions.RateLimitError as e:
+        logging.error(f"LiteLLM Rate Limit Error: {e}")
+        return f"A rate limit error occurred: {e}"
     except Exception as e:
-        logging.error(f"Error submitting prompt to LiteLLM: {e}")
-        return f"An error occurred: {e}"
+        logging.error(f"Unexpected error submitting prompt to LiteLLM: {e}")
+        return f"An unexpected error occurred: {e}"
