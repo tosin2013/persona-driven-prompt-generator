@@ -99,43 +99,61 @@ def get_current_task() -> Dict[str, Any]:
         return {"error": "No tasks found."}
 
 def configure_litellm() -> str:
+    """Configure LiteLLM with the first valid model configuration found.
+    
+    Checks multiple provider configurations and uses the first valid one found.
+    A valid configuration must have both the model name and corresponding API key set.
+    
+    Returns:
+        str: The configured model name
+    
+    Raises:
+        ValueError: If no valid configuration is found
+    """
+    providers = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "huggingface": "HUGGINGFACE_API_KEY",
+        "ollama": "OLLAMA_API_KEY",
+        "mistral": "MISTRAL_API_KEY"
+    }
+    
     model = os.getenv("LITELLM_MODEL")
     provider = os.getenv("LITELLM_PROVIDER")
-    if not model or not provider:
-        raise ValueError("LITELLM_MODEL and LITELLM_PROVIDER environment variables must be set")
-    logging.debug(f"Configuring LiteLLM with model='{model}', provider='{provider}'")
-    if provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key or api_key.strip() == "":
-            raise ValueError("OPENAI_API_KEY environment variable not set or empty")
-        litellm.api_key = api_key
-    elif provider == "groq":
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key or api_key.strip() == "":
-            raise ValueError("GROQ_API_KEY environment variable not set or empty")
-    elif provider == "deepseek":
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-        if not api_key or api_key.strip() == "":
-            raise ValueError("DEEPSEEK_API_KEY environment variable not set or empty")
-        litellm.api_key = api_key
-    elif provider == "huggingface":
-        api_key = os.getenv("HUGGINGFACE_API_KEY")
-        if not api_key or api_key.strip() == "":
-            raise ValueError("HUGGINGFACE_API_KEY environment variable not set or empty")
-        litellm.api_key = api_key
-    elif provider == "ollama":
-        api_key = os.getenv("OLLAMA_API_KEY")
-        if not api_key or api_key.strip() == "":
-            raise ValueError("OLLAMA_API_KEY environment variable not set or empty")
-        litellm.api_key = api_key
-    elif provider == "mistral":
-        api_key = os.getenv("MISTRAL_API_KEY")
-        if not api_key or api_key.strip() == "":
-            raise ValueError("MISTRAL_API_KEY environment variable not set or empty")
-        litellm.api_key = api_key
-    else:
-        raise ValueError(f"Unsupported provider: {provider}")
-    return model
+    
+    # If specific provider is set, try that first
+    if model and provider:
+        api_key_var = providers.get(provider.lower())
+        if api_key_var:
+            api_key = os.getenv(api_key_var)
+            if api_key and api_key.strip():
+                litellm.api_key = api_key
+                logging.debug(f"Using configured provider: {provider} with model: {model}")
+                return model
+    
+    # Try each provider in turn
+    for provider, api_key_var in providers.items():
+        api_key = os.getenv(api_key_var)
+        if api_key and api_key.strip():
+            # Set default model for provider if none specified
+            if not model:
+                model = {
+                    "openai": "gpt-3.5-turbo",
+                    "groq": "groq/mixtral-8x7b-32768",
+                    "deepseek": "deepseek-coder",
+                    "huggingface": "huggingface/mistral-7b",
+                    "ollama": "ollama/llama2",
+                    "mistral": "mistral-medium"
+                }.get(provider)
+            
+            litellm.api_key = api_key
+            os.environ["LITELLM_MODEL"] = model
+            os.environ["LITELLM_PROVIDER"] = provider
+            logging.debug(f"Using available provider: {provider} with model: {model}")
+            return model
+    
+    raise ValueError("No valid LiteLLM configuration found. Please set LITELLM_MODEL, LITELLM_PROVIDER, and corresponding API key in environment variables.")
 
 def generate_embedding(text: str) -> List[float]:
     """
