@@ -1,12 +1,16 @@
 import streamlit as st
 import json
+import time
 from typing import Dict, Any
 import litellm
 import threading
-import time
 from shared_functions import generate_prompt, generate_personas
 
 def page1():
+    # Initialize button counter if it doesn't exist
+    if 'button_counter' not in st.session_state:
+        st.session_state.button_counter = 0
+
     st.title("Persona-Driven Prompt Generator - wok")
     st.markdown("""
         <style>
@@ -165,8 +169,10 @@ def page1():
                 file_name="prompt.md",
                 mime="text/markdown",
                 help="Click to copy the content in markdown format",
-                key="download_markdown"
+                key=f"download_markdown_{st.session_state.button_counter}"
             )
+            # Increment counter after using it
+            st.session_state.button_counter += 1
             # Also display the markdown content in a collapsible section
             with st.expander("View Markdown"):
                 st.code(full_markdown, language="markdown")
