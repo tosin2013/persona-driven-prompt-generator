@@ -215,6 +215,10 @@ Here are some examples of how you can use the Persona-Driven Prompt Generator fo
 **Optional URLs**:
 - "https://example.com/time-management-techniques"
 
+https://www.tabnine.com/blog/code-refactoring-tools-7-popular-tools-why-you-need-them/
+https://www.jetbrains.com/idea/features/
+https://llm-refactoring.github.io/
+
 **Generated Personas**:
 
 1. **Name**: Elena Petrova
