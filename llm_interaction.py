@@ -174,90 +174,125 @@ def submit_prompt_to_llm(prompt: str, model: str = None) -> Dict[str, Any]:
             "error": str(e)
         }
 
-def generate_autogen_workflow(task: str) -> Dict[str, Any]:
+def generate_autogen_workflow(personas: List[Dict[str, Any]], workflow_type: str = "Autonomous (Chat)", agent_types: List[str] = None) -> str:
     """
-    Generate an auto-generated workflow based on the provided task using the LiteLLM library.
+    Generate an AutoGen workflow based on the personas and configuration.
 
     Args:
-        task (str): The task description.
+        personas (List[Dict[str, Any]]): List of personas to convert into agents
+        workflow_type (str): Type of workflow ("Autonomous (Chat)" or "Sequential")
+        agent_types (List[str]): List of agent types to include
 
     Returns:
-        Dict[str, Any]: The auto-generated workflow, including the generated content and other metadata.
+        str: Generated Python code for the AutoGen workflow
     """
-    model = configure_litellm()
+    if agent_types is None:
+        agent_types = ["Assistant Agent"]
 
-    logging.debug(f"Generating auto-generated workflow for task: {task}")
+    # Start with imports
+    workflow = """from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
+import autogen
 
-    try:
-        response = litellm.completion(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You will be provided with a task. "
-                        "Generate an auto-generated workflow in JSON format ONLY, without any additional text or explanations. "
-                        "The workflow should include the following fields: steps, description, and metadata."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"Task: {task}. Generate an auto-generated workflow for this task. "
-                        "Return the workflow as a JSON object ONLY, without any additional text or explanations."
-                    )
-                }
-            ],
-            temperature=0.7
-        )
-        workflow_content = response.choices[0].message.content.strip()
-        if not workflow_content:
-            raise ValueError("Received empty response from LiteLLM")
-        logging.debug(f"Workflow content received: {workflow_content}")
+# Configure agents
+config_list = [
+    {
+        'model': 'gpt-4',
+        'api_key': 'your-api-key'  # Replace with your API key
+    }
+]
+"""
 
-        # Extract JSON object from the response
-        json_match = re.search(r'({.*})', workflow_content, re.DOTALL)
-        if json_match:
-            workflow_json = json.loads(json_match.group(1))
-        else:
-            raise ValueError("Could not find valid JSON object in response")
-
-        print("Auto-generated workflow generated:")
-        print(json.dumps(workflow_json, indent=4))
-
-        return workflow_json
-    except json.JSONDecodeError as e:
-        print(f"JSON parsing error: {e}")
-        logging.error(f"JSON parsing error: {e}")
-        return {
-            "error": str(e)
-        }
-    except Exception as e:
-        print(f"Error generating auto-generated workflow: {e}")
-        logging.error(f"Error generating auto-generated workflow: {e}")
-        return {
-            "error": str(e)
-        }
-
-def download_autogen_workflow(workflow: Dict[str, Any]) -> str:
-    """
-    Download the auto-generated workflow and save it to a file.
-
-    Args:
-        workflow (Dict[str, Any]): The auto-generated workflow.
-
-    Returns:
-        str: The file path where the workflow is saved.
-    """
-    try:
-        # Save the workflow to a JSON file
-        file_path = "autogen_workflow.json"
-        with open(file_path, "w") as file:
-            json.dump(workflow, file, indent=4)
+    # Add agent definitions based on personas and types
+    for i, persona in enumerate(personas):
+        agent_name = persona["name"].replace(" ", "_").lower()
         
-        print(f"Auto-generated workflow saved to {file_path}")
+        if "User Proxy Agent" in agent_types:
+            workflow += f"""
+# User Proxy Agent for {persona['name']}
+{agent_name}_proxy = UserProxyAgent(
+    name="{agent_name}_proxy",
+    system_message="{persona['background']}\\nGoals: {persona['goals']}\\nBeliefs: {persona['beliefs']}",
+    human_input_mode="TERMINATE"
+)"""
+
+        if "Assistant Agent" in agent_types:
+            workflow += f"""
+# Assistant Agent for {persona['name']}
+{agent_name}_assistant = AssistantAgent(
+    name="{agent_name}_assistant",
+    system_message="{persona['background']}\\nKnowledge: {persona['knowledge']}\\nCommunication Style: {persona['communication_style']}",
+    llm_config={{"config_list": config_list}}
+)"""
+
+    # Add workflow-specific code
+    if workflow_type == "Autonomous (Chat)":
+        workflow += """
+
+# Initialize chat between agents
+initiator = user_proxy  # First agent
+receiver = assistant_agent  # Second agent
+
+# Start the conversation
+initiator.initiate_chat(
+    receiver,
+    message="Let's work on the task together."
+)"""
+    
+    elif workflow_type == "Sequential":
+        workflow += """
+
+# Create a list of agents in sequence
+agents = [user_proxy, assistant_agent]  # Add more agents as needed
+
+# Create GroupChat
+groupchat = GroupChat(
+    agents=agents,
+    messages=[],
+    max_round=5
+)
+
+# Create manager
+manager = GroupChatManager(groupchat=groupchat, llm_config={"config_list": config_list})
+
+# Start the sequential interaction
+manager.start()"""
+
+    if "GroupChat" in agent_types:
+        workflow += """
+
+# Create GroupChat with all agents
+all_agents = [user_proxy, assistant_agent]  # Add all agents
+groupchat = GroupChat(
+    agents=all_agents,
+    messages=[],
+    max_round=10
+)
+
+# Create manager for group chat
+manager = GroupChatManager(groupchat=groupchat, llm_config={"config_list": config_list})
+
+# Start the group chat
+manager.start()"""
+
+    return workflow
+
+def download_autogen_workflow(workflow: str) -> str:
+    """
+    Save the generated AutoGen workflow to a Python file.
+
+    Args:
+        workflow (str): The generated Python code for the AutoGen workflow
+
+    Returns:
+        str: The file path where the workflow is saved
+    """
+    try:
+        file_path = "generated_workflow.py"
+        with open(file_path, "w") as f:
+            f.write(workflow)
+        print(f"Workflow saved to {file_path}")
         return file_path
     except Exception as e:
-        print(f"Error saving auto-generated workflow: {e}")
-        logging.error(f"Error saving auto-generated workflow: {e}")
-        return ""
+        print(f"Error saving workflow: {e}")
+        logging.error(f"Error saving workflow: {e}")
+        return str(e)
