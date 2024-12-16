@@ -30,6 +30,13 @@ example_result.md
 *_orig.py
 *.bak
 *.tmp
+generated_*.py
+generated_*.json
+
+# Backup files
+backup/
+*_temp.py
+*.backup
 
 # Local configuration
 .DS_Store

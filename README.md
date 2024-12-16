@@ -4,11 +4,19 @@
 The Custom Prompt Generator is a Python application that leverages Large Language Models (LLMs) and the LiteLLM library to dynamically generate personas, fetch knowledge sources, resolve conflicts, and produce tailored prompts. This application is designed to assist in various software development tasks by providing context-aware prompts based on user input and predefined personas.
 
 ## Features
-- **Persona Generation**: Automatically generate personas based on user input and task goals.
+- **Dynamic Persona Generation**: Create realistic personas with human-like names, backgrounds, and expertise.
+- **Flexible Persona Count**: Generate 1-10 personas based on your needs.
 - **Knowledge Source Fetching**: Fetch relevant knowledge sources using the LiteLLM library.
 - **Conflict Resolution**: Resolve conflicts among personas to ensure coherent and fair task execution.
 - **Prompt Generation**: Generate tailored prompts based on personas, knowledge sources, and conflict resolutions.
-- **AutoGen Workflow**: Generate and download AutoGen workflow codes for personas, separating them as agents with specific configurations.
+- **AutoGen Integration**:
+  - Choose between Autonomous (Chat) and Sequential workflows
+  - Configure different agent types (User Proxy, Assistant, GroupChat)
+  - Generate executable Python code for AutoGen workflows
+- **Export Options**: 
+  - Export prompts in Markdown format
+  - Copy generated content directly from the UI
+  - Download AutoGen workflow as Python file
 
 ## Installation
 1. Clone the repository:
@@ -35,28 +43,47 @@ The Custom Prompt Generator is a Python application that leverages Large Languag
    ```
 
 ## Usage
-1. Open the application in your browser.
-2. Enter the task description and goals in the sidebar.
-3. Optionally, provide URLs for reference.
-4. The application will generate personas, fetch knowledge sources, resolve conflicts, and generate a tailored prompt.
-5. The generated prompt can be saved to a file in JSON format.
-6. The AutoGen workflow codes for the personas can be generated and downloaded.
+1. Open the application in your browser
+2. In the sidebar:
+   - Enter the task description and goals
+   - Select the number of personas (1-10)
+   - Configure AutoGen settings (if using AutoGen)
+3. Choose your generation method:
+   - "Generate (No AutoGen)" for standard prompts
+   - "Generate (With AutoGen)" for AutoGen workflows
+4. View and interact with:
+   - Generated personas with realistic details
+   - Knowledge sources and conflict resolutions
+   - Markdown-formatted output
+   - AutoGen workflow code
+5. Export or copy your generated content as needed
+
+## AutoGen Workflow Types
+1. **Autonomous (Chat)**
+   - Creates a chat-based interaction between agents
+   - Suitable for collaborative problem-solving
+   - Includes initiator and receiver agents
+
+2. **Sequential**
+   - Creates a step-by-step workflow
+   - Agents execute in a predefined order
+   - Better for structured tasks
+
+## Agent Types
+- **User Proxy Agent**: Represents the user and executes code
+- **Assistant Agent**: Plans and generates code to solve tasks
+- **GroupChat**: Manages interactions between multiple agents
 
 ## File Structure
-- `main.py`: The main entry point of the application.
-- `llm_interaction.py`: Contains functions for interacting with the LiteLLM library.
-- `persona_management.py`: Contains functions for generating and managing personas.
-- `database.py`: Contains functions for interacting with the database.
-- `search.py`: Contains functions for fetching knowledge sources.
-- `utils.py`: Contains utility functions.
-- `tests/`: Contains test files for the application.
+- `main.py`: Main application with UI and core logic
+- `llm_interaction.py`: LLM integration and AutoGen workflow generation
+- `persona_management.py`: Persona generation and management
+- `database.py`: Database interactions
+- `search.py`: Knowledge source fetching
+- `utils.py`: Utility functions
 
 ## Contributing
-Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for details on how to contribute to this project.
+Contributions are welcome! Please read our contributing guidelines and submit pull requests for any enhancements.
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
-## Acknowledgments
-- Thanks to the LiteLLM team for providing the library.
-- Thanks to the Streamlit team for the awesome framework.
+This project is licensed under the MIT License - see the LICENSE file for details.
