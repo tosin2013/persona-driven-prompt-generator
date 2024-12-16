@@ -7,6 +7,7 @@ from typing import List, Dict, Any
 from psycopg2 import connect
 from psycopg2.extras import Json
 import litellm
+import streamlit as st
 
 
 # Database connection details
@@ -168,3 +169,23 @@ def generate_embedding(text: str) -> List[float]:
     # Placeholder function for generating embeddings
     # Replace with actual embedding generation logic
     return [0.0] * 768  # Example embedding
+
+def get_user_input() -> Dict[str, Any]:
+    """
+    Collect user input for the task, goals, and reference URLs.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the task description, goals, and reference URLs.
+    """
+    st.sidebar.title("Persona-Driven Prompt Generator")
+    task = st.sidebar.text_area("Please describe the task or problem domain:", height=150, key="task_input")
+    goals = st.sidebar.text_input("What are the key goals for this task? (e.g., efficiency, creativity):", key="goals_input")
+    reference_urls = st.sidebar.text_area("Optional: Provide URLs for reference (one per line):", key="urls_input")
+    reference_urls_list = [url.strip() for url in reference_urls.split('\n') if url.strip()]
+    
+    # Return empty strings if the values are None (this can happen during testing)
+    return {
+        "task": task if task is not None else "",
+        "goals": goals if goals is not None else "",
+        "reference_urls": reference_urls_list
+    }

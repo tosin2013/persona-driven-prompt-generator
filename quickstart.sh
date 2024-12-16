@@ -1,3 +1,3 @@
 #!/bin/bash
 source .env
-streamlit run persona_testing.py
+streamlit run main.py

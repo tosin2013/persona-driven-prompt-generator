@@ -1,6 +1,8 @@
 import requests
 import json
 import logging
+from typing import List, Dict, Any
+
 
 def duckduckgo_search(query: str) -> List[Dict[str, Any]]:
     """

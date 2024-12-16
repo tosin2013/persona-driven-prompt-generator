@@ -46,6 +46,8 @@ To run tests from a specific file:
 
 ```bash
 python -m pytest tests/test_llm_interaction.py
+python -m pytest tests/test_main.py
+python -m pytest tests/test_page1.py
 ```
 
 ### Run Tests with Coverage Report

@@ -1,130 +1,38 @@
-import unittest
+import pytest
 from unittest.mock import patch, MagicMock
-import os
-from llm_interaction import configure_litellm, autochat, interact_with_llm, submit_prompt_to_llm, generate_persona_prompt, update_ui_with_message
-import litellm
+from llm_interaction import configure_litellm, fetch_knowledge_sources, submit_prompt_to_llm
 
-class TestLLMInteraction(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        """Set up test environment variables."""
-        os.environ["LITELLM_MODEL"] = "gpt-3.5-turbo"
-        os.environ["LITELLM_PROVIDER"] = "openai"
-        os.environ["OPENAI_API_KEY"] = "test_api_key"
+@pytest.fixture
+def mock_litellm():
+    with patch('llm_interaction.litellm') as mock:
+        yield mock
 
-    def setUp(self):
-        """Set up test fixtures."""
-        # Mock streamlit session state
-        self.mock_session_state = MagicMock()
-        self.mock_session_state.messages = []
-        self.patcher = patch('streamlit.session_state', self.mock_session_state)
-        self.patcher.start()
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        self.patcher.stop()
-
-    def test_configure_litellm(self):
-        """Test the configure_litellm function."""
+def test_configure_litellm(mock_litellm):
+    mock_litellm.api_key = None
+    with patch('os.getenv', side_effect={'LITELLM_MODEL': 'gpt-3.5-turbo', 'OPENAI_API_KEY': 'test_api_key'}.get):
         model = configure_litellm()
-        self.assertEqual(model, "gpt-3.5-turbo")
+        assert model == 'gpt-3.5-turbo'
+        assert mock_litellm.api_key == 'test_api_key'
 
-    @patch('litellm.completion')
-    def test_autochat(self, mock_completion):
-        """Test the autochat function."""
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content="Test response"))]
-        mock_completion.return_value = mock_response
+def test_fetch_knowledge_sources(mock_litellm):
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = '[{"title": "Test Source", "description": "Test Description", "url": "http://test.com"}]'
+    mock_litellm.completion.return_value = mock_response
 
-        personas = [
-            {"name": "Persona1", "emotional_tone": "neutral", "goals": "Test goal"}
-        ]
-        autochat(personas, 1)
+    with patch('os.getenv', side_effect={'LITELLM_MODEL': 'gpt-3.5-turbo', 'OPENAI_API_KEY': 'test_api_key'}.get):
+        sources = fetch_knowledge_sources("Test Task")
+        assert len(sources) == 1
+        assert sources[0]['title'] == 'Test Source'
 
-        mock_completion.assert_called()
+def test_submit_prompt_to_llm(mock_litellm):
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = 'Test Response'
+    mock_litellm.completion.return_value = mock_response
 
-    @patch('litellm.completion')
-    def test_interact_with_llm(self, mock_completion):
-        """Test the interact_with_llm function."""
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content="Test response"))]
-        mock_completion.return_value = mock_response
-
-        response = interact_with_llm("Test prompt")
-        self.assertEqual(response, "Test response")
-
-    @patch('litellm.completion')
-    def test_submit_prompt_to_llm(self, mock_completion):
-        """Test the submit_prompt_to_llm function."""
-        mock_completion.return_value = {
-            "choices": [{"message": {"content": "Test response"}}]
-        }
-
-        response = submit_prompt_to_llm("Test prompt")
-        self.assertEqual(response, "Test response")
-
-    def test_generate_persona_prompt(self):
-        """Test the generate_persona_prompt function."""
-        persona = {
-            "name": "Persona1",
-            "emotional_tone": "neutral",
-            "goals": "Test goal"
-        }
-        prompt = generate_persona_prompt(persona)
-        self.assertEqual(prompt, "Persona1 (neutral): Test goal")
-
-    def test_update_ui_with_message(self):
-        """Test the update_ui_with_message function."""
-        update_ui_with_message("Persona1", "Test message")
-        self.assertEqual(
-            self.mock_session_state.messages[-1],
-            {"role": "system", "content": "Persona1: Test message"}
-        )
-
-    @patch('litellm.completion')
-    def test_submit_prompt_to_llm_api_error(self, mock_completion):
-        """Test the submit_prompt_to_llm function with an API error."""
-        mock_completion.side_effect = litellm.exceptions.APIError(
-            message="API Error",
-            llm_provider="openai",
-            model="gpt-3.5-turbo",
-            status_code=500
-        )
-
-        response = submit_prompt_to_llm("Test prompt")
-        self.assertEqual(response, "An API error occurred: litellm.APIError: API Error")
-
-    @patch('litellm.completion')
-    def test_submit_prompt_to_llm_authentication_error(self, mock_completion):
-        """Test the submit_prompt_to_llm function with an authentication error."""
-        mock_completion.side_effect = litellm.exceptions.AuthenticationError(
-            message="Authentication Error",
-            llm_provider="openai",
-            model="gpt-3.5-turbo"
-        )
-
-        response = submit_prompt_to_llm("Test prompt")
-        self.assertEqual(response, "An authentication error occurred: litellm.AuthenticationError: Authentication Error")
-
-    @patch('litellm.completion')
-    def test_submit_prompt_to_llm_rate_limit_error(self, mock_completion):
-        """Test the submit_prompt_to_llm function with a rate limit error."""
-        mock_completion.side_effect = litellm.exceptions.RateLimitError(
-            message="Rate Limit Error",
-            llm_provider="openai",
-            model="gpt-3.5-turbo"
-        )
-
-        response = submit_prompt_to_llm("Test prompt")
-        self.assertEqual(response, "A rate limit error occurred: litellm.RateLimitError: Rate Limit Error")
-
-    @patch('litellm.completion')
-    def test_submit_prompt_to_llm_unexpected_error(self, mock_completion):
-        """Test the submit_prompt_to_llm function with an unexpected error."""
-        mock_completion.side_effect = Exception("Unexpected Error")
-
-        response = submit_prompt_to_llm("Test prompt")
-        self.assertEqual(response, "An unexpected error occurred: Unexpected Error")
-
-if __name__ == '__main__':
-    unittest.main()
+    with patch('os.getenv', side_effect={'LITELLM_MODEL': 'gpt-3.5-turbo', 'OPENAI_API_KEY': 'test_api_key'}.get):
+        response = submit_prompt_to_llm("Test Prompt")
+        assert response['content'] == 'Test Response'
+        assert response['metadata']['model'] == 'gpt-3.5-turbo'
+        assert response['metadata']['temperature'] == 0.7

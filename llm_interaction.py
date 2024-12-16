@@ -173,3 +173,91 @@ def submit_prompt_to_llm(prompt: str, model: str = None) -> Dict[str, Any]:
         return {
             "error": str(e)
         }
+
+def generate_autogen_workflow(task: str) -> Dict[str, Any]:
+    """
+    Generate an auto-generated workflow based on the provided task using the LiteLLM library.
+
+    Args:
+        task (str): The task description.
+
+    Returns:
+        Dict[str, Any]: The auto-generated workflow, including the generated content and other metadata.
+    """
+    model = configure_litellm()
+
+    logging.debug(f"Generating auto-generated workflow for task: {task}")
+
+    try:
+        response = litellm.completion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You will be provided with a task. "
+                        "Generate an auto-generated workflow in JSON format ONLY, without any additional text or explanations. "
+                        "The workflow should include the following fields: steps, description, and metadata."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Task: {task}. Generate an auto-generated workflow for this task. "
+                        "Return the workflow as a JSON object ONLY, without any additional text or explanations."
+                    )
+                }
+            ],
+            temperature=0.7
+        )
+        workflow_content = response.choices[0].message.content.strip()
+        if not workflow_content:
+            raise ValueError("Received empty response from LiteLLM")
+        logging.debug(f"Workflow content received: {workflow_content}")
+
+        # Extract JSON object from the response
+        json_match = re.search(r'({.*})', workflow_content, re.DOTALL)
+        if json_match:
+            workflow_json = json.loads(json_match.group(1))
+        else:
+            raise ValueError("Could not find valid JSON object in response")
+
+        print("Auto-generated workflow generated:")
+        print(json.dumps(workflow_json, indent=4))
+
+        return workflow_json
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        logging.error(f"JSON parsing error: {e}")
+        return {
+            "error": str(e)
+        }
+    except Exception as e:
+        print(f"Error generating auto-generated workflow: {e}")
+        logging.error(f"Error generating auto-generated workflow: {e}")
+        return {
+            "error": str(e)
+        }
+
+def download_autogen_workflow(workflow: Dict[str, Any]) -> str:
+    """
+    Download the auto-generated workflow and save it to a file.
+
+    Args:
+        workflow (Dict[str, Any]): The auto-generated workflow.
+
+    Returns:
+        str: The file path where the workflow is saved.
+    """
+    try:
+        # Save the workflow to a JSON file
+        file_path = "autogen_workflow.json"
+        with open(file_path, "w") as file:
+            json.dump(workflow, file, indent=4)
+        
+        print(f"Auto-generated workflow saved to {file_path}")
+        return file_path
+    except Exception as e:
+        print(f"Error saving auto-generated workflow: {e}")
+        logging.error(f"Error saving auto-generated workflow: {e}")
+        return ""
