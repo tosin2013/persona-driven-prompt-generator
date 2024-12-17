@@ -333,7 +333,8 @@ def main():
                     workflow_code = generate_autogen_workflow(
                         st.session_state.personas,
                         workflow_type=workflow_type,
-                        agent_types=agent_types
+                        agent_types=agent_types,
+                        task=user_input
                     )
                     
                     # Add to chat history
@@ -351,7 +352,7 @@ def main():
         with col3:
             if st.button("Clear Chat"):
                 clear_chat()
-                st.experimental_rerun()
+                st.rerun()
 
     # Main area for displaying content
     if st.session_state.personas:

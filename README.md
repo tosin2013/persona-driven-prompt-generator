@@ -3,6 +3,9 @@
 ## Overview
 The Custom Prompt Generator is a Python application that leverages Large Language Models (LLMs) and the LiteLLM library to dynamically generate personas, fetch knowledge sources, resolve conflicts, and produce tailored prompts. This application is designed to assist in various software development tasks by providing context-aware prompts based on user input and predefined personas.
 
+![alt text](image.png)
+![alt text](image-1.png)
+
 ## Features
 - **Dynamic Persona Generation**: Create realistic personas with human-like names, backgrounds, and expertise.
 - **Flexible Persona Count**: Generate 1-10 personas based on your needs.
@@ -18,28 +21,142 @@ The Custom Prompt Generator is a Python application that leverages Large Languag
   - Copy generated content directly from the UI
   - Download AutoGen workflow as Python file
 
-## Installation
-1. Clone the repository:
+## Configuration
+
+This application uses [LiteLLM](https://github.com/BerriAI/litellm) to support multiple LLM providers. You can choose from:
+
+1. **OpenAI** (GPT-3.5, GPT-4)
+   - Best for general purpose, high-quality responses
+   - Requires OpenAI API key
+
+2. **Groq** (Mixtral, Llama)
+   - Best for fast inference, competitive pricing
+   - Requires Groq API key
+
+3. **DeepSeek**
+   - Best for specialized tasks, research applications
+   - Requires DeepSeek API key
+
+4. **Hugging Face**
+   - Best for custom models, open-source alternatives
+   - Requires Hugging Face API key
+
+5. **Ollama** (Local Deployment)
+   - Best for self-hosted, privacy-focused applications
+   - Can run locally without API key
+
+### Quick Start
+1. Copy the environment template:
    ```bash
-   git clone https://github.com/yourusername/custom-prompt-generator.git
-   cd custom-prompt-generator
+   cp env-example .env
    ```
 
-2. Install the required dependencies:
+2. Edit `.env` and configure your chosen provider:
+   ```bash
+   # Example for OpenAI
+   LITELLM_MODEL=gpt-3.5-turbo
+   LITELLM_PROVIDER=openai
+   OPENAI_API_KEY=your-openai-api-key
+   ```
+
+3. Run with the quickstart script:
+   ```bash
+   chmod +x quickstart.sh
+   ./quickstart.sh
+   ```
+
+## Database Setup
+
+This application uses PostgreSQL with the pgvector extension for efficient vector storage and similarity search. The database is used to store:
+- Generated personas
+- Task history
+- Vector embeddings
+- Emotional tones data
+
+### Automatic Database Setup
+1. Run the database setup script:
+   ```bash
+   chmod +x setup_database.sh
+   sudo ./setup_database.sh
+   ```
+   This script will:
+   - Install PostgreSQL 17
+   - Install pgvector extension
+   - Create database and user
+   - Configure authentication
+   - Set up required tables
+   - Run connection tests
+
+2. Default database configuration:
+   - Database Name: persona_db
+   - User: persona_user
+   - Port: 5432
+   
+   You can modify these in setup_database.sh before running.
+
+### Manual Database Setup
+If you prefer manual setup:
+
+1. Install PostgreSQL 17:
+   ```bash
+   # Ubuntu
+   sudo apt install postgresql-17
+   
+   # RHEL/Amazon Linux
+   sudo dnf install postgresql17-server
+   ```
+
+2. Install pgvector:
+   ```bash
+   # Ubuntu
+   sudo apt install postgresql-17-pgvector
+   
+   # RHEL/Amazon Linux
+   sudo yum install pgvector_17
+   ```
+
+3. Configure database:
+   ```bash
+   sudo -u postgres psql
+   CREATE DATABASE persona_db;
+   CREATE USER persona_user WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE persona_db TO persona_user;
+   \c persona_db
+   CREATE EXTENSION vector;
+   ```
+
+### Database Schema
+The application uses several tables:
+- `task_memory`: Stores task history and vector embeddings
+- `emotional_tones`: Stores predefined emotional tones for personas
+- `personas`: Stores generated persona information
+
+### Troubleshooting Database Issues
+- **Connection Issues**: Check PostgreSQL service status
+  ```bash
+  sudo systemctl status postgresql-17
+  ```
+- **Permission Errors**: Verify user privileges
+  ```bash
+  sudo -u postgres psql -c "\du"
+  ```
+- **pgvector Issues**: Confirm extension installation
+  ```bash
+  sudo -u postgres psql -d persona_db -c "\dx"
+  ```
+
+## Development Setup
+1. Create a Python virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # or
+   .\venv\Scripts\activate  # Windows
+   ```
+
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
-   ```
-
-3. Set up the environment variables for LiteLLM:
-   ```bash
-   export LITELLM_MODEL="your-model-name"
-   export LITELLM_PROVIDER="your-provider"
-   export OPENAI_API_KEY="your-api-key"
-   ```
-
-4. Run the application:
-   ```bash
-   streamlit run main.py
    ```
 
 ## Usage

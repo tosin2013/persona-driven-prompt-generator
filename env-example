@@ -1,31 +1,56 @@
-# LiteLLM Configuration Examples
-# Choose ONE provider and configure its variables accordingly
+# LiteLLM Configuration Guide
+# This application uses LiteLLM (https://github.com/BerriAI/litellm) to support multiple LLM providers
+# Choose ONE provider configuration below and rename this file to .env
 
-# OpenAI Configuration
-# export LITELLM_MODEL="gpt-3.5-turbo"
-# export LITELLM_PROVIDER="openai"
-# export OPENAI_API_KEY="your-openai-api-key"
+# ===== Available Provider Configurations =====
 
-# Groq Configuration
-# export LITELLM_MODEL="groq/mixtral-8x7b-32768"
-# export LITELLM_PROVIDER="groq"
-# export GROQ_API_KEY="your-groq-api-key"
+# 1. OpenAI Configuration (GPT-3.5, GPT-4)
+# Best for: General purpose, high-quality responses
+LITELLM_MODEL=gpt-3.5-turbo
+LITELLM_PROVIDER=openai
+OPENAI_API_KEY=your-openai-api-key
 
-# DeepSeek Configuration
-# export LITELLM_MODEL="deepseek-model-name"
-# export LITELLM_PROVIDER="deepseek"
-# export DEEPSEEK_API_KEY="your-deepseek-api-key"
+# 2. Groq Configuration (Mixtral, Llama)
+# Best for: Fast inference, competitive pricing
+# LITELLM_MODEL=groq/mixtral-8x7b-32768
+# LITELLM_PROVIDER=groq
+# GROQ_API_KEY=your-groq-api-key
 
-# Hugging Face Configuration
-# export LITELLM_MODEL="huggingface/transformer-model"
-# export LITELLM_PROVIDER="huggingface"
-# export HUGGINGFACE_API_KEY="your-huggingface-api-key"
+# 3. DeepSeek Configuration
+# Best for: Specialized tasks, research applications
+# LITELLM_MODEL=deepseek-model-name
+# LITELLM_PROVIDER=deepseek
+# DEEPSEEK_API_KEY=your-deepseek-api-key
 
-# Ollama Configuration
-# export LITELLM_MODEL="ollama/llama2"
-# export LITELLM_PROVIDER="ollama"
-# export LITELLM_API_BASE="http://localhost:11434"
-# export OLLAMA_API_KEY="your-ollama-api-key"
+# 4. Hugging Face Configuration
+# Best for: Custom models, open-source alternatives
+# LITELLM_MODEL=huggingface/transformer-model
+# LITELLM_PROVIDER=huggingface
+# HUGGINGFACE_API_KEY=your-huggingface-api-key
 
-# Note: Uncomment and configure only ONE provider's settings.
-# Replace placeholder values with your actual API keys and model names.
+# 5. Ollama Configuration (Local Deployment)
+# Best for: Self-hosted, privacy-focused applications
+# LITELLM_MODEL=ollama/llama2
+# LITELLM_PROVIDER=ollama
+# LITELLM_API_BASE=http://localhost:11434
+# OLLAMA_API_KEY=your-ollama-api-key
+
+# ===== Additional Configuration =====
+
+# Database Configuration (Optional)
+# Uncomment if using database features
+# DB_HOST=localhost
+# DB_PORT=5432
+# DB_NAME=your_database_name
+# DB_USER=your_database_user
+# DB_PASSWORD=your_database_password
+
+# Application Settings
+DEBUG=false
+LOG_LEVEL=INFO
+
+# Instructions:
+# 1. Copy this file to .env: cp env-example .env
+# 2. Uncomment and configure ONE provider section
+# 3. Replace placeholder values with actual credentials
+# 4. Configure additional settings as needed

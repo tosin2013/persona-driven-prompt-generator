@@ -174,105 +174,324 @@ def submit_prompt_to_llm(prompt: str, model: str = None) -> Dict[str, Any]:
             "error": str(e)
         }
 
-def generate_autogen_workflow(personas: List[Dict[str, Any]], workflow_type: str = "Autonomous (Chat)", agent_types: List[str] = None) -> str:
-    """
-    Generate an AutoGen workflow based on the personas and configuration.
+from agent.enhanced_agents import (
+    EnhancedUserProxy, EnhancedAssistant, CodeAssistant, ReviewerAssistant,
+    WebResearchAgent, FileSystemAgent, CoordinatedGroupChat, CoordinatedManager,
+    create_progress_tracker, monitor_conversation
+)
 
-    Args:
-        personas (List[Dict[str, Any]]): List of personas to convert into agents
-        workflow_type (str): Type of workflow ("Autonomous (Chat)" or "Sequential")
-        agent_types (List[str]): List of agent types to include
-
-    Returns:
-        str: Generated Python code for the AutoGen workflow
-    """
+def generate_autogen_workflow(personas: List[Dict[str, Any]], workflow_type: str = "Autonomous (Chat)", agent_types: List[str] = None, task: Dict[str, str] = None, urls: List[str] = None) -> str:
+    """Generate an AutoGen workflow with enhanced capabilities."""
     if agent_types is None:
         agent_types = ["Assistant Agent"]
+    
+    if urls is None:
+        urls = []
 
-    # Start with imports
-    workflow = """from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
+    task_desc = task.get('task', 'No task description provided') if task else 'No task description provided'
+    task_goals = task.get('goals', 'No goals provided') if task else 'No goals provided'
+
+    # Start with imports and task description
+    workflow = f"""from agent.enhanced_agents import *
 import autogen
+import logging
+import sys
+from typing import Dict, List, Optional, Union
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
-# Configure agents
+# Task Description
+TASK = \"\"\"{task_desc}\"\"\"
+
+# Task Goals
+GOALS = \"\"\"{task_goals}\"\"\"
+
+# URLs to analyze
+URLS = {urls}
+
+# Configure agents with enhanced settings
 config_list = [
-    {
+    {{
         'model': 'gpt-4',
-        'api_key': 'your-api-key'  # Replace with your API key
-    }
+        'api_key': 'your-api-key',  # Replace with your API key
+        'temperature': 0.7,
+        'max_tokens': 2000,
+        'timeout': TIMEOUT_SECONDS
+    }}
 ]
+
+# Progress tracking
+progress = create_progress_tracker()
+
+# URL content cache
+url_content_cache = {{}}
 """
 
     # Add agent definitions based on personas and types
     for i, persona in enumerate(personas):
         agent_name = persona["name"].replace(" ", "_").lower()
         
+        if "Web Research Agent" in agent_types:
+            workflow += f"""
+# Web Research Agent for {persona['name']}
+{agent_name}_researcher = WebResearchAgent(
+    name="{agent_name}_researcher",
+    system_message=\"\"\"Role: Web Content Researcher
+Background: {persona['background']}
+Knowledge: {persona['knowledge']}
+Task: {task_desc}
+Objectives: {task_goals}
+Responsibilities:
+- Analyze web content and URLs
+- Extract relevant information
+- Identify code snippets
+- Summarize findings
+- Cache results for efficiency
+- Collaborate with other agents to share findings\"\"\",
+    llm_config={{"config_list": config_list}}
+)
+
+# Initialize URL analysis for {agent_name}_researcher
+for url in URLS:
+    if url.startswith(('http://', 'https://')):
+        analysis = {agent_name}_researcher.analyze_url_content(url)
+        url_content_cache[url] = analysis
+"""
+
+        if "File System Agent" in agent_types:
+            workflow += f"""
+# File System Agent for {persona['name']}
+{agent_name}_fs = FileSystemAgent(
+    name="{agent_name}_fs",
+    system_message=\"\"\"Role: File System Handler
+Background: {persona['background']}
+Knowledge: {persona['knowledge']}
+Task: {task_desc}
+Objectives: {task_goals}
+Responsibilities:
+- Read and analyze local files
+- Extract file content
+- Identify file types
+- Cache file contents
+- Handle file URLs safely
+- Share file content with other agents\"\"\",
+    llm_config={{"config_list": config_list}}
+)
+
+# Initialize file analysis for {agent_name}_fs
+for url in URLS:
+    if url.startswith('file:///'):
+        content = {agent_name}_fs.read_file_content(url)
+        url_content_cache[url] = content
+"""
+
         if "User Proxy Agent" in agent_types:
             workflow += f"""
 # User Proxy Agent for {persona['name']}
-{agent_name}_proxy = UserProxyAgent(
+{agent_name}_proxy = EnhancedUserProxy(
     name="{agent_name}_proxy",
-    system_message="{persona['background']}\\nGoals: {persona['goals']}\\nBeliefs: {persona['beliefs']}",
-    human_input_mode="TERMINATE"
+    system_message=\"\"\"Role: {persona['background']}
+Goals: {persona['goals']}
+Beliefs: {persona['beliefs']}
+Task: {task_desc}
+Objectives: {task_goals}
+Special Instructions: Coordinate with other agents and maintain task focus.
+Error Handling: Report any issues and request clarification when needed.\"\"\"
 )"""
 
         if "Assistant Agent" in agent_types:
             workflow += f"""
 # Assistant Agent for {persona['name']}
-{agent_name}_assistant = AssistantAgent(
+{agent_name}_assistant = EnhancedAssistant(
     name="{agent_name}_assistant",
-    system_message="{persona['background']}\\nKnowledge: {persona['knowledge']}\\nCommunication Style: {persona['communication_style']}",
+    system_message=\"\"\"Role: {persona['background']}
+Knowledge: {persona['knowledge']}
+Communication Style: {persona['communication_style']}
+Task: {task_desc}
+Objectives: {task_goals}
+Collaboration Guidelines: 
+- Actively participate in problem-solving
+- Share relevant expertise
+- Ask for clarification when needed
+- Provide detailed explanations
+Error Recovery:
+- Monitor for inconsistencies
+- Suggest alternative approaches
+- Report technical issues\"\"\",
     llm_config={{"config_list": config_list}}
 )"""
 
-    # Add workflow-specific code
+        if "Code Assistant" in agent_types:
+            workflow += f"""
+# Code Assistant Agent for {persona['name']}
+{agent_name}_coder = CodeAssistant(
+    name="{agent_name}_coder",
+    system_message=\"\"\"Role: Code Implementation Specialist
+Background: {persona['background']}
+Expertise: {persona['knowledge']}
+Task: {task_desc}
+Objectives: {task_goals}
+Responsibilities:
+- Write clean, efficient code
+- Implement error handling
+- Follow best practices
+- Document code thoroughly
+- Review and refactor suggestions\"\"\",
+    llm_config={{"config_list": config_list}}
+)"""
+
+        if "Reviewer Agent" in agent_types:
+            workflow += f"""
+# Code Review Agent for {persona['name']}
+{agent_name}_reviewer = ReviewerAssistant(
+    name="{agent_name}_reviewer",
+    system_message=\"\"\"Role: Code Quality Reviewer
+Background: {persona['background']}
+Standards: {persona['knowledge']}
+Task: {task_desc}
+Review Criteria:
+- Code quality and style
+- Security best practices
+- Performance optimization
+- Documentation completeness
+- Error handling coverage\"\"\",
+    llm_config={{"config_list": config_list}}
+)"""
+
+    # Add workflow-specific code based on type
     if workflow_type == "Autonomous (Chat)":
         workflow += """
-
-# Initialize chat between agents
-initiator = user_proxy  # First agent
-receiver = assistant_agent  # Second agent
-
-# Start the conversation
-initiator.initiate_chat(
-    receiver,
-    message="Let's work on the task together."
-)"""
+try:
+    # Initialize chat between agents with monitoring
+    initiator = user_proxy  # First agent
+    receiver = assistant_agent  # Second agent
+    chat_history = []
+    
+    # Start the conversation with task details and URL analysis
+    initial_message = f"Let's work on the following task:\\n{TASK}\\n\\nOur goals are:\\n{GOALS}"
+    
+    # Add URL analysis summary if available
+    if url_content_cache:
+        initial_message += "\\n\\nURL Analysis Summary:\\n"
+        for url, content in url_content_cache.items():
+            initial_message += f"\\nURL: {url}\\n"
+            if isinstance(content, dict):
+                initial_message += f"Domain: {content.get('domain', 'N/A')}\\n"
+                initial_message += f"Summary: {content.get('summary', 'No summary available')}\\n"
+                if content.get('code_snippets'):
+                    initial_message += "Code Snippets Found:\\n"
+                    for snippet in content['code_snippets']:
+                        initial_message += f"```\\n{snippet}\\n```\\n"
+            else:
+                initial_message += f"Content: {str(content)[:500]}...\\n"
+    
+    response = initiator.initiate_chat(
+        receiver,
+        message=initial_message,
+        silent=False
+    )
+    
+    # Monitor and manage the conversation
+    while not any(agent.check_termination(msg) for agent, msg in chat_history[-2:] if msg):
+        if monitor_conversation(chat_history):
+            logging.info("Attempting to redirect conversation...")
+            initiator.send(
+                receiver,
+                "Let's refocus on our main objectives and current progress.",
+                silent=False
+            )
+        chat_history.append(response)
+        
+except Exception as e:
+    logging.error(f"Error in conversation: {str(e)}")
+    logging.info("Attempting to recover conversation...")
+    initiator.send(
+        receiver,
+        "Let's resume our discussion from the last stable point.",
+        silent=False
+    )"""
     
     elif workflow_type == "Sequential":
         workflow += """
+try:
+    # Create a list of agents in sequence with error handling
+    agents = [user_proxy, assistant_agent]  # Add more agents as needed
+    
+    # Add URL analysis agents if URLs are present
+    if URLS:
+        if any(url.startswith(('http://', 'https://')) for url in URLS):
+            agents.append(web_researcher)
+        if any(url.startswith('file:///') for url in URLS):
+            agents.append(file_system_agent)
 
-# Create a list of agents in sequence
-agents = [user_proxy, assistant_agent]  # Add more agents as needed
+    # Create GroupChat with enhanced monitoring
+    groupchat = CoordinatedGroupChat(
+        agents=agents,
+        messages=[f"Task: {TASK}\\n\\nGoals: {GOALS}\\n\\nURL Analysis: {str(url_content_cache)}"],
+        max_round=5,
+        speaker_selection_method="auto"
+    )
 
-# Create GroupChat
-groupchat = GroupChat(
-    agents=agents,
-    messages=[],
-    max_round=5
-)
+    # Create manager with enhanced monitoring
+    manager = CoordinatedManager(
+        groupchat=groupchat,
+        llm_config={{"config_list": config_list}},
+        system_message="Monitor and guide the conversation. Ensure all agents contribute effectively."
+    )
 
-# Create manager
-manager = GroupChatManager(groupchat=groupchat, llm_config={"config_list": config_list})
-
-# Start the sequential interaction
-manager.start()"""
+    # Start the sequential interaction with progress tracking
+    progress["current_phase"] = "Initialization"
+    manager.start()
+    
+except Exception as e:
+    logging.error(f"Error in workflow execution: {str(e)}")
+    if handle_error(e, "GroupChatManager", groupchat.error_count):
+        logging.info("Restarting group chat with recovery...")
+        manager.start()"""
 
     if "GroupChat" in agent_types:
         workflow += """
+try:
+    # Create coordinated group chat with all agents
+    all_agents = [user_proxy, assistant_agent]  # Base agents
+    
+    # Add specialized agents based on URLs
+    if URLS:
+        if any(url.startswith(('http://', 'https://')) for url in URLS):
+            all_agents.append(web_researcher)
+        if any(url.startswith('file:///') for url in URLS):
+            all_agents.append(file_system_agent)
+    
+    # Add other specialized agents
+    if coder:
+        all_agents.append(coder)
+    if reviewer:
+        all_agents.append(reviewer)
 
-# Create GroupChat with all agents
-all_agents = [user_proxy, assistant_agent]  # Add all agents
-groupchat = GroupChat(
-    agents=all_agents,
-    messages=[],
-    max_round=10
-)
+    coordinated_chat = CoordinatedGroupChat(
+        agents=all_agents,
+        messages=[f"Task: {TASK}\\n\\nGoals: {GOALS}\\n\\nURL Analysis: {str(url_content_cache)}"],
+        max_round=10,
+        speaker_selection_method="auto",
+        allow_repeat_speaker=False
+    )
 
-# Create manager for group chat
-manager = GroupChatManager(groupchat=groupchat, llm_config={"config_list": config_list})
+    # Create coordinated manager
+    coordinated_manager = CoordinatedManager(
+        groupchat=coordinated_chat,
+        llm_config={{"config_list": config_list}}
+    )
 
-# Start the group chat
-manager.start()"""
+    # Start the coordinated group chat with phase management
+    progress["current_phase"] = "Planning"
+    coordinated_manager.start()
+    
+except Exception as e:
+    logging.error(f"Error in coordinated workflow: {str(e)}")
+    if handle_error(e, "CoordinatedManager", coordinated_chat.error_count):
+        logging.info("Restarting coordinated chat with recovery...")
+        coordinated_manager.start()"""
 
     return workflow
 

@@ -6,3 +6,7 @@ psycopg2-binary  # Replace psycopg2 with psycopg2-binary
 autogenstudio
 pytest
 streamlit-option-menu
+termcolor>=2.4.0
+pyautogen>=0.2.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
