@@ -1,4 +1,4 @@
-# Custom Prompt Generator
+# Persona Driven Prompt Generator
 
 ## Overview
 The Custom Prompt Generator is a Python application that leverages Large Language Models (LLMs) and the LiteLLM library to dynamically generate personas, fetch knowledge sources, resolve conflicts, and produce tailored prompts. This application is designed to assist in various software development tasks by providing context-aware prompts based on user input and predefined personas.
