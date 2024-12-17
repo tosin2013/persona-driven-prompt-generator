@@ -89,7 +89,7 @@ jobs:
               export LITELLM_API_BASE="http://localhost:11434"
               export OLLAMA_API_KEY="your-ollama-api-key"
               ollama pull ${LITELLM_MODEL}
-              nohup streamlit run persona_testing.py > output.log 2>&1 &
+              nohup streamlit run main.py > output.log 2>&1 &
 
 
 
