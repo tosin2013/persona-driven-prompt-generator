@@ -82,6 +82,7 @@ jobs:
               pip3 install -r requirements.txt
               bash setup_database.sh -i
               sudo ufw enable
+              sudo ufw allow 22/tcp
               sudo ufw allow 8501/tcp
               curl -fsSL https://ollama.com/install.sh | sh
               export LITELLM_MODEL="ollama/llama2"
