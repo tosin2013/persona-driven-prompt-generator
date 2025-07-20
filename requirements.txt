@@ -7,6 +7,6 @@ autogenstudio
 pytest
 streamlit-option-menu
 termcolor>=2.4.0
-pyautogen>=0.2.0
+ag2>=0.2.0
 beautifulsoup4>=4.12.0
 requests>=2.31.0
